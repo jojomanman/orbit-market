@@ -16,6 +16,7 @@ import numpy as np
 from . import physics as ph
 from .orbit import C_KM_S, REGIONS, RE
 from .routing import ROUTERS, Network
+from .settlement import Ledger
 
 RES = ["compute", "memory", "storage", "isl", "downlink"]
 # Anchor prices. compute: an L-class satellite (~$1.5M built and launched, 64 units, 5 years) amortises to ~$0.5 per
@@ -385,6 +386,7 @@ class Engine:
         self.owner_markup = np.array([OWNER_MARKUP[o] for o in con.owner])
         self.reserve_base = self.owner_markup * 0.45
         self.cust_done, self.cust_paid = [], []   # this tick, for per-customer stats
+        self.ledger = Ledger(con.owner)
 
     def _zero_unmet(self):
         n, e, g = self.con.n_sats, len(self.con.isl_u), len(self.con.gs_lat)
@@ -428,6 +430,7 @@ class Engine:
             self.mode.observe(j)
         self.pending.extend(arrivals)
         self.cust_done, self.cust_paid = [], []
+        self.ledger.decay(dt)
         self.unmet = self._zero_unmet()
         self._weather(now, dt)
         self._clear_pending(geo, now, dt, reserve)
@@ -448,6 +451,7 @@ class Engine:
                 keep.append(t)
                 continue
             s, job = t["sat"], t["job"]
+            self.ledger.release(job, "compute")
             self.units_used[s] -= job["units"]
             self.mem_used[s] -= job["mem"]
             if job["out_gb"] > 0.01:
@@ -466,6 +470,8 @@ class Engine:
         # Why a job failed: priced out (no quote within its bid), no capacity in reach, or placed but late.
         why = None if on_time else "late" if "placed" in job else job.get("why", "capacity")
         job["result"] = {"t": now, "on_time": on_time, "why": why}
+        for leg in ("compute", "delivery"):
+            self.ledger.release(job, leg, on_time)
         if on_time:
             self.delivery_s.append((now, now - job["arrival"]))
         self.done.append((now, job["value"], on_time, job["kind"], why))
@@ -572,7 +578,7 @@ class Engine:
                 job["crit"] = 0.0
                 winners.append((job, s))
             else:
-                self._pay(job, now, price)
+                self._pay(job, now, price, s)
             free_u[s] -= job["units"]
             free_m[s] -= job["mem"]
             free_s[s] -= job["storage_gb"]
@@ -590,11 +596,13 @@ class Engine:
         for job, s in winners:
             pay = max(job["crit"], L_MULT * job["ref_cost"])
             job["placed"]["price"] = round(pay, 4)
-            self._pay(job, now, pay)
+            self._pay(job, now, pay, s)
         self.pending = keep
 
-    def _pay(self, job, now, usd):
+    def _pay(self, job, now, usd, sat):
         self.paid.append((now, usd))
+        ref = job["ref_cost"]
+        self.ledger.open(job, usd, sat, 1 - ref_cost(dict(job, units=0, mem=0, storage_gb=0)) / ref if ref > 0 else 0.0)
         if job.get("customer"):
             self.cust_paid.append((job["customer"], usd))
 
@@ -628,7 +636,7 @@ class Engine:
         if self.net.residual(path) < job["gbps"]:
             self.net.blame(path, job["gbps"], self.unmet)
             return False
-        self._pay(job, now, price)
+        self._pay(job, now, price, sa)
         self.lat_ms.append((now, lat_ms))
         job["placed"] = {"sat": sa, "price": round(price, 4), "t": now, "latency_ms": round(lat_ms, 1)}
         self.flows.append(dict(job=job, sat=sa, dst=sb, gb_left=job["out_gb"], hold_gb=0, start=now))
@@ -655,6 +663,7 @@ class Engine:
                 got = max(0.0, min(want, self.net.residual(path)))
                 if got > 0:
                     self.net.take(path, got)
+                    self.ledger.carry(job, path, self.net, got * dt / 8, self.pr)
                 f["path"] = path
                 f["load"] = self.net.bottleneck_util(path)
                 if "placed" in job and job["kind"] in ("image", "api"):

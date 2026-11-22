@@ -77,6 +77,15 @@ k-to-1 to keep one process fast. `--demand synthetic` switches to the earlier ge
 | Image of a location | Real passes of S3 (radar, any light) and S4 (optical, sun > 10 deg) within 320 km (30 deg off-nadir). 16 units x 2 min onboard, 20 GB raw held, 0.5 GB product down. Options within 15 min priced at today's regional prices, later ones at the same region and hour yesterday (seasonal-naive forecast); cheapest option per urgency wins. |
 | Presets | `static/presets.json`: per-job resources and values are order-of-magnitude assumptions for discussion, not quotes. |
 
+## Settlement (`sim/settlement.py`, `GET api/settlement`, `settlement` in `GET api/jobs/<id>`)
+
+The customer pays one price to the entry provider (owner of the satellite that takes the job), forwarding included,
+like an ISP. 2 % market fee; the rest sits in escrow per leg: compute (its anchor-cost share) is released when the
+result exists, delivery when the bits land; a failed leg is refunded. Owners settle relaying among themselves:
+a pair whose carried traffic is within 2:1 both ways over a 24 h decaying window peers settlement-free, otherwise
+the entry owner pays the forwarder 1.2x its link price per GB (transit). Ground stations are always paid per GB.
+Assumed: fee, 2:1 ratio, 1.2x markup. Not yet: routing preference own > peer > transit (one shared tree per tick).
+
 ## Known gaps
 
 No advance reservation of future slots (jobs start now or re-bid every 3 min). Imaging sensor time is not a priced good. Inter-shell links absent. Ground-station antennas are pooled per station, not scheduled per pass.

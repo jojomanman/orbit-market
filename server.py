@@ -23,6 +23,7 @@ import numpy as np
 
 from sim.market import (DEFAULT_MODE, IMAGER_KM, MODES, REF, RES, WEATHER_AI_RATIO, WEATHER_AI_UNITS, WEATHER_RAW_MBPS, Demand,
                         Engine, ref_cost, sun_elevation_sin)
+from sim import settlement
 from sim.customers import Customers
 from sim.orbit import REGIONS, Constellation, Geometry, gmst, passes, region_of, sun_vector
 
@@ -410,6 +411,8 @@ def job_view(job):
         out["placed"] = job["placed"]
     if "quote_usd" in job:
         out["quote_usd"] = job["quote_usd"]
+    if "settle" in job:
+        out["settlement"] = settlement.job_view(job["settle"])
     if "result" in job:
         out["status"] = "done" if job["result"]["on_time"] else job["result"]["why"] or "missed"
     else:
@@ -453,6 +456,8 @@ class Handler(BaseHTTPRequestHandler):
                 "history": sim.history[mode]})
         if path == "/api/sats":
             return self._json(200, sim.sats_summary())
+        if path == "/api/settlement":
+            return self._json(200, {"t": sim.t, "mode": mode, **sim.engines[mode].ledger.view()})
         if path == "/api/scenario":
             return self._json(200, {"event": sim.demand.event, "weather": sim.weather})
         if path == "/api/customers":

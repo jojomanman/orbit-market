@@ -18,6 +18,7 @@ from server import parse_job                                       # noqa: E402
 from sim.customers import Customers                                # noqa: E402
 from sim.market import MODES, Demand, Engine, ref_cost             # noqa: E402
 from sim.orbit import RE, Constellation, Geometry                  # noqa: E402
+from sim.settlement import Ledger                                  # noqa: E402
 
 
 class Sanity(unittest.TestCase):
@@ -66,6 +67,29 @@ class Sanity(unittest.TestCase):
         fixed = [x for x in self.engines["fixed"].region_prices(self.geo)["compute"] if x is not None]
         self.assertAlmostEqual(max(fixed), min(fixed))
 
+    def test_settlement_conserves_money(self):
+        for e in self.engines.values():
+            v = e.ledger.view()
+            self.assertGreater(v["fee_usd_24h"], 0)
+            self.assertGreaterEqual(v["escrow_usd"], -1e-6)
+            self.assertTrue(all(p["transit_usd_24h"] >= 0 for p in v["pairs"]))
+        led = Ledger(np.array(["A", "B"]))
+        led.traffic = {("A", "B"): 100.0, ("B", "A"): 80.0}
+        self.assertEqual(led.relation("A", "B"), "peer")
+        led.traffic[("B", "A")] = 10.0
+        self.assertEqual(led.relation("A", "B"), "transit")
+        self.assertEqual(led.relation("A", "A"), "own")
+        job = {}
+        led.open(job, 10.0, 1, 0.25)
+        self.assertEqual(job["settle"]["entry"], "B")
+        led.release(job, "compute")
+        led.release(job, "delivery", ok=False)
+        led.release(job, "delivery")          # a settled leg never pays twice
+        self.assertAlmostEqual(led.revenue["B"] + led.refunded + led.fee, 10.0)
+        self.assertAlmostEqual(led.held, 0.0)
+        led.release({}, "compute")            # jobs never priced (no escrow) are ignored
+
+
     def test_modes_registered(self):
         self.assertEqual(set(MODES), {"rfq", "posted", "batch", "tatonnement", "fixed"})
 
@@ -96,7 +120,6 @@ class CustomerFiles(unittest.TestCase):
             self.assertEqual([o["id"] for o in c.orgs], ["ok"])
             self.assertEqual(len(c.problems), 4)
             self.assertFalse(c.reload())    # unchanged files: no re-read
-
 
 if __name__ == "__main__":
     unittest.main()
