@@ -30,6 +30,7 @@ REF = {"compute": 7.5,      # $/unit-h
        "isl": 0.05,         # $/GB per hop
        "downlink": 2.0,     # $/GB, station + terminal
        "contact": 10.0}     # $/station contact minute, AWS Ground Station wideband reserved
+UPLINK_CAP = 2.2            # uplink rates stop at 2.2x idle: AWS on-demand $22/min vs the $10 reserved anchor
 # Imaging sensor time, $/km2 by delivery window: Umbra SAR via SkyWatch lists ~$39-190/km2, priority at the top;
 # archive-speed optical tasking ~$10-25/km2. Orders have a 25 km2 minimum. Log-interpolated between the two windows.
 TASKING = ((900.0, 190.0), (86400.0, 25.0))   # (delivery window s, $/km2)
@@ -226,8 +227,10 @@ def input_gb(job):
 
 def uplink_rates(gb, gs_price):
     """Uplink at one station: per GB plus per contact minute (at the downlink link rate), both on the station's own
-    load curve (gs_price is the station's per-GB price, REF downlink / 2 when idle). Returns minutes, $/min, $ total."""
+    load curve (gs_price is the station's per-GB price, REF downlink / 2 when idle), capped where AWS on-demand
+    wideband ($22/min) caps ground-station time: past that a buyer books another provider. Returns minutes, $/min, $ total."""
     minutes = gb * 8 / ph.DOWNLINK_GBPS / 60
+    gs_price = min(gs_price, UPLINK_CAP * REF["downlink"] / 2)
     per_min = REF["contact"] * gs_price / (REF["downlink"] / 2)
     return minutes, per_min, gb * gs_price + minutes * per_min
 
