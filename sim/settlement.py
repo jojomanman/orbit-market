@@ -3,8 +3,9 @@
 Jonas 2026-11-22 14:06: the offer includes forwarding, like an ISP. The customer pays ONE price to the entry
 provider (the owner of the satellite that takes the job); owners settle the relaying among themselves. Pairs whose
 traffic to each other is roughly balanced peer settlement-free; otherwise the entry owner pays the forwarder transit
-per GB. Ground stations are always paid per GB. The price sits in escrow and is released per leg on receipt (compute
-when the result exists, delivery when the bits land); a failed leg is refunded. The market keeps a 2 % fee.
+per GB. Ground stations are always paid, per GB both ways (the uplink also per contact minute). The price sits in escrow
+and is released per leg on receipt (uplink when the input is on board, compute when the result exists, delivery when
+the bits land); a failed leg is refunded. The market keeps a 2 % fee.
 
 Routing does not yet prefer own > peer > transit: the mesh computes one shared shortest-path tree per tick, so a
 per-entry-owner preference would need one tree per owner (4x the Dijkstra cost).
@@ -43,12 +44,12 @@ class Ledger:
         ab, ba = self.traffic.get((a, b), 0.0), self.traffic.get((b, a), 0.0)
         return "peer" if min(ab, ba) >= PEER_RATIO * max(ab, ba) > 0 else "transit"
 
-    def open(self, job, usd, sat, compute_share):
+    def open(self, job, usd, sat, shares):
+        """shares: leg -> fraction of the price, summing to 1."""
         fee = FEE * usd
         net = usd - fee
         job["settle"] = {"entry": str(self.owner[sat]), "price": round(usd, 4), "fee": round(fee, 4),
-                         "legs": {"compute": {"usd": net * compute_share, "state": "escrow"},
-                                  "delivery": {"usd": net * (1 - compute_share), "state": "escrow"}},
+                         "legs": {k: {"usd": net * f, "state": "escrow"} for k, f in shares.items()},
                          "forwarders": {}}
         self.fee += fee
         self.held += net
@@ -62,6 +63,11 @@ class Ledger:
         if ok:
             st["legs"][leg]["state"] = "paid"
             self.revenue[st["entry"]] = self.revenue.get(st["entry"], 0.0) + usd
+            if leg == "uplink" and usd:     # the entry passes the uplink station its whole share
+                f = st["forwarders"].setdefault(STATION, {"gb": 0.0, "usd": 0.0, "relation": "transit"})
+                f["gb"] += max(job["storage_gb"] - job["out_gb"], 0)
+                f["usd"] += usd
+                self.transit[(st["entry"], STATION)] = self.transit.get((st["entry"], STATION), 0.0) + usd
         else:
             st["legs"][leg]["state"] = "refunded"
             self.refunded += usd

@@ -22,7 +22,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import numpy as np
 
-from sim.market import (DEFAULT_MODE, IMAGER_KM, MODES, REF, RES, WEATHER_AI_RATIO, WEATHER_AI_UNITS, WEATHER_RAW_MBPS, Demand,
+from sim.market import (DEFAULT_MODE, IMAGER_KM, MODES, REF, RES, input_gb, uplink_rates, WEATHER_AI_RATIO, WEATHER_AI_UNITS, WEATHER_RAW_MBPS, Demand,
                         Engine, ref_cost, sun_elevation_sin)
 from sim import board, physics as ph, settlement
 from sim.customers import Customers
@@ -169,8 +169,10 @@ class Sim:
         prefer a customer job that computes and then downlinks, so every step of its life shows."""
         e = self.engines[DEFAULT_MODE]
         fresh = [t["job"] for t in list(e.tasks) if t["job"].get("customer") and t["job"]["placed"]["t"] >= self.t - 2 * TICK_SIM_S]
+        # Only jobs with a customer location have an uplink station, and every walkthrough shows the uplink.
+        placed = [t["job"] for t in list(e.tasks) if t["job"].get("location")]
         full = [j for j in fresh if j["out_gb"] > 0 and j.get("location")]
-        pool = full or fresh or [t["job"] for t in list(e.tasks)]
+        pool = full or [j for j in fresh if j.get("location")] or placed
         # The walkthrough steps through every hop: of a few candidates take one that starts on the ground and has
         # a route near 8 legs, long enough to show relaying, short enough to click through.
         def fit(j):
@@ -197,8 +199,12 @@ class Sim:
             la, lo = math.radians(loc[0]), math.radians(loc[1])
             p = np.array([math.cos(la) * math.cos(lo), math.cos(la) * math.sin(lo), math.sin(la)])
             seen = set(geo.gs_links[:, 1].astype(int).tolist())
-            g = next((int(x) for x in np.argsort(-(self.con.gs_ecef @ p)) if int(x) in seen), None)
+            g = j.get("uplink_gs")
+            if g not in seen:
+                g = next((int(x) for x in np.argsort(-(self.con.gs_ecef @ p)) if int(x) in seen), None)
             vis = geo.gs_links[geo.gs_links[:, 1] == g]
+            same = vis[self.con.shell[vis[:, 0].astype(int)] == self.con.shell[sat]]   # the mesh has no inter-shell links
+            vis = same if len(same) else vis
             if len(vis):
                 first = int(vis[np.argmin(vis[:, 2]), 0])
                 up = e.net.paths_between([(first, sat)])[0] if first != sat else [sat]
@@ -214,15 +220,19 @@ class Sim:
         nodes += down[1:] if down else []
         pos = lambda x, i: (geo if i <= at else geo_out).ecef[x] if x < n else self.con.gs_ecef[x - n]
         # Priced as the engine prices the job (_cost): compute on the chosen satellite plus the output's way down.
-        # Uplink legs carry the input but the model has no uplink price yet, so they show volume only.
-        pr, gb_in, gb_out, h = e.pr, max(j["storage_gb"] - j["out_gb"], 0), j["out_gb"], j["duration"] / 3600
+        # The uplink (station to the first satellite) is priced per GB and contact minute; the input's mesh hops up to
+        # the compute satellite are carried inside the entry's price, so they show volume only.
+        pr, gb_in, gb_out, h = e.pr, input_gb(j), j["out_gb"], j["duration"] / 3600
         item = lambda what, qty, unit, rate: {"what": what, "qty": round(qty, 3), "unit": unit, "rate": round(float(rate), 5),
                                               "usd": round(qty * float(rate), 4)}
         legs = []
         for i, x in enumerate(nodes):
             km = float(np.linalg.norm(pos(x, i) - pos(nodes[i - 1], i))) if i else 0.0
             prev = int(nodes[i - 1]) if i else None
-            if i == 0 or i <= at:
+            if i == 1 and prev >= n:
+                minutes, per_min, _ = uplink_rates(gb_in, float(pr.gs[prev - n]))
+                items = [item("uplink", gb_in, "GB", pr.gs[prev - n]), item("contact", minutes, "min", per_min)]
+            elif i == 0 or i <= at:
                 items = [item("input", gb_in, "GB", 0)] if i else []
             elif x >= n:
                 items = [item("downlink", gb_out, "GB", pr.dl[prev]), item("station", gb_out, "GB", pr.gs[x - n])]
@@ -238,7 +248,10 @@ class Sim:
         # settlement actually escrowed: rates keep their proportions, totals match the paid price.
         if "settle" in j:
             paid = settlement.job_view(j["settle"])["legs"]
-            for part, got in ((compute, paid["compute"]["usd"]), ([x for l in legs for x in l["items"]], paid["delivery"]["usd"])):
+            up = legs[1]["items"] if len(legs) > 1 and legs[0]["kind"] == "gs" else []
+            down = [x for l in legs[at + 1:] for x in l["items"]]
+            for part, got in ((up, paid.get("uplink", {"usd": 0})["usd"]), (compute, paid["compute"]["usd"]),
+                              (down, paid["delivery"]["usd"])):
                 k = got / max(sum(x["usd"] for x in part), 1e-9)
                 for x in part:
                     if x["usd"]:
@@ -343,10 +356,13 @@ class Sim:
         pr = e.pr
         parts = {"compute": job["units"] * h * pr.cpu[cand], "memory": job["mem"] * h * pr.mem[cand],
                  "storage": job["storage_gb"] / 1000 * max(h, 0.5) * pr.sto[cand]}
-        total_all = sum(parts.values()) + job["out_gb"] * np.where(np.isfinite(ground), ground, 0)
+        up = e._uplink(job)
+        total_all = sum(parts.values()) + up + job["out_gb"] * np.where(np.isfinite(ground), ground, 0)
         i = int(np.argmin(np.where(ok, total_all, np.inf)))
         sat = int(cand[i])
         out = {k: float(v[i]) for k, v in parts.items()}
+        if up:
+            out["uplink"] = up
         path = e.net.path_to_ground(sat) if job["out_gb"] > 0 else None
         if path:
             down = float(pr.dl[path[-2]] + pr.gs[path[-1] - self.con.n_sats])
@@ -359,7 +375,7 @@ class Sim:
         if horizon > 900 and self.region_hist:
             for t in np.arange(self.t + 900, self.t + horizon, 900):
                 cpu, dl = self.forecast(region, float(t))
-                f = job["units"] * h * cpu + job["out_gb"] * dl + out["memory"] + out["storage"]
+                f = job["units"] * h * cpu + job["out_gb"] * dl + out["memory"] + out["storage"] + up
                 cheapest = min(cheapest, f)
         out["urgency_premium"] = max(0.0, now_price - cheapest)
         total = min(now_price, job["price_cap"]) if job.get("priority") else now_price

@@ -80,8 +80,12 @@ class Sanity(unittest.TestCase):
         self.assertEqual(led.relation("A", "B"), "transit")
         self.assertEqual(led.relation("A", "A"), "own")
         job = {}
-        led.open(job, 10.0, 1, 0.25)
+        led.open(job, 10.0, 1, {"uplink": 0.1, "compute": 0.25, "delivery": 0.65})
         self.assertEqual(job["settle"]["entry"], "B")
+        job.update(storage_gb=3.0, out_gb=1.0)
+        led.release(job, "uplink")
+        self.assertAlmostEqual(led.transit[("B", "GS")], 0.98)     # the station gets the whole uplink share
+        self.assertEqual(job["settle"]["forwarders"]["GS"]["gb"], 2.0)
         led.release(job, "compute")
         led.release(job, "delivery", ok=False)
         led.release(job, "delivery")          # a settled leg never pays twice
@@ -151,7 +155,13 @@ class FeaturedPlan(unittest.TestCase):
         self.assertEqual(legs[ca]["node"], v["sat"])
         self.assertEqual(legs[-1]["kind"], "gs")
         self.assertTrue(all(l["kind"] == "sat" for l in legs[1:-1]))
+        self.assertEqual(legs[0]["kind"], "gs")         # picker skips jobs without a customer location
+        self.assertEqual([i["what"] for i in legs[1]["items"]], ["uplink", "contact"])
         if "settlement" in v:
+            st = v["settlement"]["legs"]
+            self.assertEqual(st["uplink"]["state"], "paid")
+            self.assertAlmostEqual(sum(i["usd"] for i in legs[1]["items"]), st["uplink"]["usd"], delta=0.001)
+            self.assertTrue(all(abs(i["usd"] - i["qty"] * i["rate"]) < 0.002 for i in legs[1]["items"]))   # amount x rate
             chain = sum(i["usd"] for l in legs for i in l["items"]) + sum(i["usd"] for i in v["plan"]["compute"])
             self.assertAlmostEqual(chain + v["settlement"]["fee_usd"], v["price_usd"], delta=0.01 + 0.002 * v["price_usd"])
 

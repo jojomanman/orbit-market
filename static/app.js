@@ -502,7 +502,7 @@ function buildSteps() {
     focus: pin, dist: 2.9, t: t0, speed: 1, quotes: true,
     facts: [["Max price", money(tx.offer.max_usd)], ["Deadline", mins(tx.offer.deadline_s)], ["Paid", money(tx.price_usd)]] });
   const up = L[0].kind === "gs" ? 1 : 0;
-  if (up) S.push({ ...span(1, 1), name: "Uplink", sub: "Input goes up from the station nearest the customer.", dist: 1.7 });
+  if (up) S.push({ ...span(1, 1), name: "Uplink", sub: "Input goes up from the station nearest the customer, paid per GB and contact minute.", dist: 1.7 });
   const rel = chunks(up + 1, ca);
   rel.forEach(([a, b], k) => S.push({ ...span(a, b), name: `Relay ${k + 1} of ${rel.length}`, dist: b > a ? 2.3 : 1.9,
     sub: "Planned at match time: every hop is booked before the data moves." }));
@@ -562,13 +562,13 @@ function renderStep() {
   else if (s.chain) {
     const sum = (f) => steps.filter(f).reduce((q, x) => q + (x.items || []).reduce((a, it) => a + it.usd, 0), 0);
     const ent = st ? st.entry : "";
-    const rows = [["Compute", ent, sum((x) => x.name === "Compute")],
+    const rows = [["Uplink", "station", sum((x) => x.name === "Uplink")], ["Compute", ent, sum((x) => x.name === "Compute")],
       ["Mesh relay", st ? [...new Set([ent, ...Object.keys(st.forwarders).filter((k) => k !== "GS")])].join(", ") : "", sum((x) => x.name.startsWith("Relay"))],
       ["Downlink and station", "station", sum((x) => x.name === "Downlink")], ["Market fee", "market", st ? st.fee_usd : 0]];
     cost = table([`<tr><th>Part</th><th>Paid to</th><th>USD</th></tr>`].concat(rows.map(([a, b, c]) => `<tr><td>${a}</td><td>${b}</td><td>${money(c)}</td></tr>`),
       [`<tr class="tot"><td>Total</td><td></td><td>${money(tx.price_usd)}</td></tr>`]));
   } else if (s.items && s.items.length) cost = table([`<tr><th>Item</th><th>Amount</th><th>Rate</th><th>USD</th></tr>`].concat(s.items.map((it) =>
-    `<tr><td>${it.what}</td><td>${fmt(it.qty)} ${it.unit}</td><td>${it.rate ? money(it.rate) : "unpriced"}</td><td>${money(it.usd)}</td></tr>`)));
+    `<tr><td>${it.what}</td><td>${fmt(it.qty)} ${it.unit}</td><td>${it.rate ? money(it.rate) : "in price"}</td><td>${money(it.usd)}</td></tr>`)));
   $("wcost").innerHTML = cost;
   $("wtotal").innerHTML = s.chain ? "" : `<span>Running total</span><b>${money(spent(si))}</b>`;
   $("wdots").innerHTML = steps.map((_, i) => `<i class="${i < si ? "done" : i === si ? "on" : ""}"></i>`).join("");

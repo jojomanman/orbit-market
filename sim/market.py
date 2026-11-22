@@ -25,7 +25,8 @@ REF = {"compute": 0.60,     # $/unit-h
        "memory": 0.006,     # $/GB-h
        "storage": 0.30,     # $/TB-h
        "isl": 0.002,        # $/GB per hop
-       "downlink": 0.50}    # $/GB, station + terminal
+       "downlink": 0.50,    # $/GB, station + terminal
+       "contact": 3.0}      # $/station contact minute, AWS Ground Station narrowband on-demand
 OWNER_MARKUP = {"A": 1.0, "B": 0.9, "C": 1.1, "D": 1.0}
 FOOTPRINT_KM = 940.0        # ground radius seen above 25 deg elevation from ~550 km
 IMAGER_KM = 320.0           # imaging swath reach: 30 deg off-nadir from ~560 km
@@ -199,7 +200,21 @@ def ref_cost(job):
     hours = job["duration"] / 3600
     return (job["units"] * hours * REF["compute"] + job["mem"] * hours * REF["memory"]
             + job["storage_gb"] / 1000 * max(hours, 0.5) * REF["storage"]
-            + job["out_gb"] * (REF["downlink"] if job["kind"] != "relay" else 10 * REF["isl"]))
+            + job["out_gb"] * (REF["downlink"] if job["kind"] != "relay" else 10 * REF["isl"])
+            + (uplink_rates(input_gb(job), REF["downlink"] / 2)[2] if job["kind"] != "relay" and job.get("location") else 0))
+
+
+def input_gb(job):
+    """The sim keeps input and output in storage_gb; what goes up is the part that does not come back down."""
+    return max(job["storage_gb"] - job["out_gb"], 0)
+
+
+def uplink_rates(gb, gs_price):
+    """Uplink at one station: per GB plus per contact minute (at the downlink link rate), both on the station's own
+    load curve (gs_price is the station's per-GB price, REF downlink / 2 when idle). Returns minutes, $/min, $ total."""
+    minutes = gb * 8 / ph.DOWNLINK_GBPS / 60
+    per_min = REF["contact"] * gs_price / (REF["downlink"] / 2)
+    return minutes, per_min, gb * gs_price + minutes * per_min
 
 
 def bundle_size(job):
@@ -521,7 +536,16 @@ class Engine:
         h = job["duration"] / 3600
         pr = self.pr
         return (job["units"] * h * pr.cpu[sats] + job["mem"] * h * pr.mem[sats]
-                + job["storage_gb"] / 1000 * max(h, 0.5) * pr.sto[sats] + job["out_gb"] * ground)
+                + job["storage_gb"] / 1000 * max(h, 0.5) * pr.sto[sats] + job["out_gb"] * ground + self._uplink(job))
+
+    def _uplink(self, job):
+        """The input's way up from the station nearest the customer, the same for every candidate satellite; the
+        station is kept on the job so the walkthrough plans the uplink from it."""
+        if job["kind"] == "relay" or not job.get("location") or not input_gb(job):
+            return 0.0
+        g = int(np.argmax(self.con.gs_ecef @ np.array(_unit(*job["location"]))))
+        job["uplink_gs"] = g
+        return uplink_rates(input_gb(job), float(self.pr.gs[g]))[2]
 
     def _held(self, t0, t1):
         """Units and memory per satellite that bookings hold somewhere in [t0, t1)."""
@@ -608,6 +632,7 @@ class Engine:
                 i = 0
             s, price = int(fit[i]), float(cost[i])
             job["route_share"] = min(1.0, job["out_gb"] * float(ground[s]) / price) if price > 0 else 0.0
+            job["up_share"] = min(1.0 - job["route_share"], self._uplink(job) / price) if price > 0 else 0.0
             if getattr(mode, "vickrey", False) and price <= job["value"]:
                 price = min(float(np.partition(cost, 1)[1]) if len(cost) > 1 else price, job["value"])
             if job.get("priority"):
@@ -648,8 +673,10 @@ class Engine:
 
     def _pay(self, job, now, usd, sat):
         self.paid.append((now, usd))
-        # The winner's own quote says how much of the price is transport (route + station); the rest is compute.
-        self.ledger.open(job, usd, sat, 1 - job.get("route_share", 1.0 if job["kind"] == "relay" else 0.0))
+        # The winner's own quote says how much of the price is uplink and route + station; the rest is compute.
+        up, route = job.get("up_share", 0.0), job.get("route_share", 1.0 if job["kind"] == "relay" else 0.0)
+        self.ledger.open(job, usd, sat, {"uplink": up, "compute": 1 - up - route, "delivery": route})
+        self.ledger.release(job, "uplink")      # the input is on board once compute starts
         if job.get("customer"):
             self.cust_paid.append((job["customer"], usd))
 
