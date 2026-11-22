@@ -495,6 +495,7 @@ let highlight = null;
 let tx = null, steps = [], si = 0, walkT = null, stepAt = 0, clockFrom = 0, tgtFrom = null, offFrom = null;
 const mmss = (s) => s == null ? "" : `+${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 const mins = (s) => s < 90 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`;
+const utc = (t) => new Date(t * 1000).toISOString().slice(11, 16) + " UTC";
 const ms = (v) => `${v.toFixed(1)} ms`;
 const money = (v) => v == null ? "" : !v ? "$0" : "$" + (v >= 100 ? Math.round(v).toLocaleString("en-US") : v >= 1 ? v.toFixed(2) : v.toFixed(4));
 const gm = (t) => state ? state.gmst + (t - state.t) * 7.2921159e-5 : 0;
@@ -553,7 +554,8 @@ function buildSteps() {
   const lat = L.reduce((s, l) => s + l.ms, 0) / 1000, total = (tx.t.matched - tx.t.arrival > 0 ? tx.t.matched - tx.t.arrival : 0) + lat + sp.run_s + p.downlink_s;
   S.push({ name: "Delivered", title: `${mins(total)} of ${mins(tx.offer.deadline_s)} deadline`, sub: "The whole route, and who was paid.",
     focus: { route: true }, dist: 4, t: t1, speed: 1, chain: true,
-    facts: [["Total time", mins(total)], ["Deadline", mins(tx.offer.deadline_s)], ["Price", money(tx.price_usd)]] });
+    facts: [["Total time", mins(total)], ["Deadline", mins(tx.offer.deadline_s)], ["Price", money(tx.price_usd)],
+      ["Up (blue)", utc(t0)], ["Down (orange)", utc(L[L.length - 1].t)]] });
   return S;
 }
 
@@ -631,39 +633,47 @@ const focusRing = sprite(RING, 0xffb35c, 0.05), focusDot = sprite(DOT, 0xffb35c,
 focusRing.renderOrder = focusDot.renderOrder = packet.renderOrder = 10;
 scene.add(focusRing, focusDot, packet);
 const focusP = new THREE.Vector3();
-let packetPath = [];   // [start, end] of every active leg, in order
-function legEnds(i) {
+let walkLegs = [], packetLegs = [];   // [leg index, mesh] drawn this step; leg indices the packet runs along
+// Every leg is a unit cylinder re-aimed each frame between its two nodes at the walkthrough clock, so links stay
+// attached to the moving satellites and stations instead of being frozen where they were planned.
+const LEG_GEOM = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true);
+function legEnds(i, t) {
   const L = tx.plan.legs;
-  return [nodeAt(L[i - 1].node, L[i].t, new THREE.Vector3()), nodeAt(L[i].node, L[i].t, new THREE.Vector3())];
+  return [nodeAt(L[i - 1].node, t, new THREE.Vector3()), nodeAt(L[i].node, t, new THREE.Vector3())];
+}
+const legDir = new THREE.Vector3();
+function aimLegs(t) {
+  for (const [i, m] of walkLegs) {
+    const [p, q] = legEnds(i, t);
+    legDir.subVectors(q, p);
+    m.position.lerpVectors(p, q, 0.5);
+    m.scale.set(m.userData.r, legDir.length(), m.userData.r);
+    m.quaternion.setFromUnitVectors(Y, legDir.normalize());
+  }
 }
 function buildRoute() {
   walkGroup.clear();
   const s = steps[si], L = tx.plan.legs, [a, b] = s.legs || [L.length, L.length - 1];
   const reached = s.legs ? a : s.name === "Delivered" ? L.length : s.name === "Compute" ? tx.plan.compute_at + 1 : 1;
-  const done = [], future = [];
-  for (let i = 1; i < L.length; i++) (i < reached ? done : i > Math.max(b, reached - 1) ? future : []).push(...legEnds(i));
-  if (done.length) walkGroup.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(done),
-    new THREE.LineBasicMaterial({ color: 0x7cc4ff, transparent: true, opacity: s.name === "Delivered" ? 0.95 : 0.55 })));
-  if (future.length) {
-    const f = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(future),
-      new THREE.LineDashedMaterial({ color: 0x9aa7b4, dashSize: 0.008, gapSize: 0.008, transparent: true, opacity: 0.45 }));
-    f.computeLineDistances(); walkGroup.add(f);
-  }
-  packetPath = [];
   const bold = s.focus.route ? [1, L.length - 1] : [a, b];
-  for (let i = bold[0]; i <= bold[1]; i++) {
-    const [p, q] = legEnds(i);
-    walkGroup.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.LineCurve3(p, q), 8, 0.0022, 6),
-      new THREE.MeshBasicMaterial({ color: s.focus.route ? 0x7cc4ff : 0xffb35c })));
-    if (!s.focus.route) packetPath.push(p, q);
+  walkLegs = []; packetLegs = [];
+  for (let i = 1; i < L.length; i++) {
+    const on = i >= bold[0] && i <= bold[1], up = i <= tx.plan.compute_at;
+    const color = on ? (s.focus.route && up ? 0x7cc4ff : 0xffb35c) : i < reached ? 0x7cc4ff : 0x9aa7b4;
+    const m = new THREE.Mesh(LEG_GEOM, new THREE.MeshBasicMaterial({ color, transparent: !on,
+      opacity: on ? 1 : i < reached ? 0.55 : 0.3 }));
+    m.userData.r = on ? 0.0022 : 0.0009;
+    walkGroup.add(m); walkLegs.push([i, m]);
+    if (on && !s.focus.route) packetLegs.push(i);
   }
+  aimLegs(s.t);
   const mark = (tex, color, size, at) => { const m = sprite(tex, color, size); at(m.position); walkGroup.add(m); };
   if (s.quotes) for (const [i, q] of tx.quotes.entries()) mark(RING, i ? 0x7cc4ff : 0xffb35c, i ? 0.03 : 0.045, (v) => nodeAt(q.sat, s.t, v));
-  if (tx.loc) mark(DOT, 0xffffff, 0.012, (v) => llAt(tx.loc, steps[0].t, v));
+  if (tx.loc) mark(DOT, 0xffffff, 0.012, (v) => llAt(tx.loc, s.t, v));
   // Focus point of the step.
   if (s.focus.ll) llAt(s.focus.ll, s.t, focusP);
   else if (s.focus.node != null) nodeAt(s.focus.node, s.t, focusP);
-  else { focusP.set(0, 0, 0); for (let i = 1; i < L.length; i++) legEnds(i).forEach((v) => focusP.add(v)); focusP.normalize(); }
+  else { focusP.set(0, 0, 0); for (let i = 1; i < L.length; i++) legEnds(i, s.t).forEach((v) => focusP.add(v)); focusP.normalize(); }
   const label = s.focus.ll ? tx.why : s.focus.node != null ? (L.find((l) => l.node === s.focus.node) || {}).name : "";
   const own = s.focus.node != null && s.focus.node < N ? (L.find((l) => l.node === s.focus.node) || {}).owner : null;
   $("wlabel").textContent = label + (own ? ` · operator ${own}` : "");
@@ -684,6 +694,7 @@ function walkFrame(dt) {
   $("wspeed").textContent = `time ×${shown >= 10 ? Math.round(shown).toLocaleString("en-US") : shown >= 1 ? shown.toFixed(0) : shown.toPrecision(1)}`;
   $("wclock").textContent = new Date(walkT * 1000).toISOString().slice(11, 19) + " UTC";
   if (s.focus.live) nodeAt(s.focus.node, walkT, focusP);
+  aimLegs(walkT);
   // Orbit around the active node, looking down at it at an angle so up and down links keep their length on screen;
   // the whole-route step orbits the Earth's centre.
   if (steeredAt < stepAt) {
@@ -702,11 +713,11 @@ function walkFrame(dt) {
   const d = camera.position.distanceTo(focusP);
   focusRing.scale.setScalar(0.05 * d * pulse); focusDot.scale.setScalar(0.012 * d);
   focusRing.visible = focusDot.visible = !s.focus.route;
-  const u = ((now - stepAt) % 1600) / 1200, n = packetPath.length / 2;
+  const u = ((now - stepAt) % 1600) / 1200, n = packetLegs.length;
   packet.visible = n > 0 && u <= 1;
   if (packet.visible) {
-    const x = Math.min(n - 1e-6, u * n), i = Math.floor(x);
-    packet.position.lerpVectors(packetPath[2 * i], packetPath[2 * i + 1], x - i); packet.scale.setScalar(0.014 * d);
+    const x = Math.min(n - 1e-6, u * n), i = Math.floor(x), [p, q] = legEnds(packetLegs[i], walkT);
+    packet.position.lerpVectors(p, q, x - i); packet.scale.setScalar(0.014 * d);
   }
   camera.lookAt(controls.target); camera.updateMatrixWorld();
   scr.copy(focusP).project(camera);
