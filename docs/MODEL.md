@@ -80,11 +80,11 @@ k-to-1 to keep one process fast. `--demand synthetic` switches to the earlier ge
 ## Settlement (`sim/settlement.py`, `GET api/settlement`, `settlement` in `GET api/jobs/<id>`)
 
 The customer pays one price to the entry provider (owner of the satellite that takes the job), forwarding included,
-like an ISP. 2 % market fee; the rest sits in escrow per leg: compute (its anchor-cost share) is released when the
+like an ISP. 2 % market fee; the rest sits in escrow per leg: compute (the winning quote's non-transport share) is released when the
 result exists, delivery when the bits land; a failed leg is refunded. Owners settle relaying among themselves:
 a pair whose carried traffic is within 2:1 both ways over a 24 h decaying window peers settlement-free, otherwise
-the entry owner pays the forwarder 1.2x its link price per GB (transit). Ground stations are always paid per GB.
-Assumed: fee, 2:1 ratio, 1.2x markup. Not yet: routing preference own > peer > transit (one shared tree per tick).
+the entry owner pays the forwarder its posted link price per GB (transit). Ground stations are always paid per GB.
+Assumed: fee, 2:1 ratio. Not yet: routing preference own > peer > transit (one shared tree per tick).
 
 ## Known gaps
 

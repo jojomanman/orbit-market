@@ -214,8 +214,9 @@ function drawRoutes(dt) {
     if (r.ghost) { r.path = (ghostPaths.get(r.id) || {}).path; r.load = (ghostPaths.get(r.id) || {}).load; }
     else ghostPaths.set(r.id, r);
     if (!r.path) continue;
-    c.setHex(0x5f8fb8).lerp(new THREE.Color(0xffb35c), Math.min(1, r.load || 0));
-    const w = (r.id === "hl" ? 0.9 : 0.35) * f;
+    if (r.id === "hl") c.setHex(0xbfe8ff);
+    else c.setHex(0x5f8fb8).lerp(new THREE.Color(0xffb35c), Math.min(1, r.load || 0));
+    const w = (r.id === "hl" ? 1 : 0.35) * f;
     // The relay hops zigzag through the mesh grid; draw the satellite part as one great-circle arc from the first to
     // the last satellite and the ground legs as straight up/down links.
     const sats = r.path.filter((id) => id < N);

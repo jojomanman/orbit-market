@@ -14,7 +14,7 @@ import math
 FEE = 0.02
 PEER_RATIO = 0.5          # traffic within 2:1 in both directions = peers
 WINDOW_S = 24 * 3600      # traffic memory (exponential decay) that the peering test looks at
-TRANSIT_MARKUP = 1.2      # transit per GB = the forwarder's own link price x this
+TRANSIT_MARKUP = 1.0      # transit per GB = the forwarder's posted link price (what the entry priced in)
 STATION = "GS"            # ground station operators, settled as one party
 
 

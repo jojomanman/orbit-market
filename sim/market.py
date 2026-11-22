@@ -607,6 +607,7 @@ class Engine:
             else:
                 i = 0
             s, price = int(fit[i]), float(cost[i])
+            job["route_share"] = min(1.0, job["out_gb"] * float(ground[s]) / price) if price > 0 else 0.0
             if getattr(mode, "vickrey", False) and price <= job["value"]:
                 price = min(float(np.partition(cost, 1)[1]) if len(cost) > 1 else price, job["value"])
             if job.get("priority"):
@@ -647,8 +648,8 @@ class Engine:
 
     def _pay(self, job, now, usd, sat):
         self.paid.append((now, usd))
-        ref = job["ref_cost"]
-        self.ledger.open(job, usd, sat, 1 - ref_cost(dict(job, units=0, mem=0, storage_gb=0)) / ref if ref > 0 else 0.0)
+        # The winner's own quote says how much of the price is transport (route + station); the rest is compute.
+        self.ledger.open(job, usd, sat, 1 - job.get("route_share", 1.0 if job["kind"] == "relay" else 0.0))
         if job.get("customer"):
             self.cust_paid.append((job["customer"], usd))
 
