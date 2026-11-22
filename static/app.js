@@ -147,6 +147,7 @@ const history = [];
 async function poll() {
   try {
     const s = await (await fetch("api/state?mode=" + mode, { cache: "no-store" })).json();
+    if (!s.modes) return;
     const now = performance.now();
     if (lastSrv && s.t > lastSrv.t) rate = 0.8 * rate + 0.2 * (s.t - lastSrv.t) / ((now - lastSrv.at) / 1000);
     if (!lastSrv || s.t !== lastSrv.t) lastSrv = { t: s.t, at: now };
@@ -228,7 +229,7 @@ const fmt = (v) => v == null ? "" : v >= 10 ? v.toFixed(1) : v >= 1 ? v.toFixed(
 const pct = (v) => v == null ? "" : Math.round(v * 100) + "%";
 const usd = (v) => v == null ? "" : "$" + (v >= 100 ? Math.round(v).toLocaleString("en-US") : v.toFixed(2));
 const NAMES = { compute: "Compute", memory: "Memory", storage: "Storage", isl: "Mesh links", downlink: "Downlink" };
-let mode = new URLSearchParams(location.search).get("mode") || "posted";
+let mode = new URLSearchParams(location.search).get("mode") || "rfq";
 
 function seg(el, items, current, onPick) {
   el.innerHTML = items.map(([k, label]) => `<button data-k="${k}" class="${k === current ? "on" : ""}">${label}</button>`).join("");
@@ -262,7 +263,8 @@ function renderPanel(s) {
   const row = (label, f) => `<tr><td>${label}</td>${ms.map(([k, m]) => `<td class="${k === mode ? "" : "n"}">${f(m)}</td>`).join("")}</tr>`;
   $("compare").innerHTML = `<tr><th></th>${ms.map(([k, m]) => `<th>${m.label.split(" ")[0]}</th>`).join("")}</tr>`
     + row("Welfare /h", (m) => usd(m.welfare_per_h)) + row("Served", (m) => pct(m.served))
-    + row("Missed", (m) => pct(m.missed)) + row("p99 ms", (m) => m.p99_latency_ms ?? "")
+    + row("Priced out", (m) => pct(m.priced_out)) + row("Missed", (m) => pct(m.missed))
+    + row("p99 ms", (m) => m.p99_latency_ms ?? "")
     + row("Binding", (m) => RES_LABEL[m.binding]);
 
   renderScenario(s);
@@ -319,22 +321,102 @@ function setTarget(lat, lon) {
   const [x, y, z] = llToLocal(lat, lon, 1.002);
   marker.position.set(x, y, z); marker.lookAt(x * 2, y * 2, z * 2);
   $("target").textContent = `${lat.toFixed(1)}, ${lon.toFixed(1)}`;
-  $("quote").innerHTML = `<tr><td class="n">pricing passes...</td></tr>`;
-  fetch(`api/quote?lat=${lat}&lon=${lon}`).then((r) => r.json()).then(renderQuote);
+  requote();
 }
 
+// ---- calculator -------------------------------------------------------------------------------------------------
+let presets = [], preset = null;
+const form = $("calc");
 const WITHIN = { 60: "1 min", 900: "15 min", 3600: "1 h", 21600: "6 h", 86400: "24 h" };
-function renderQuote(q) {
-  $("quote").innerHTML = `<tr><th>Within</th><th>Price</th><th>Pass</th><th></th></tr>` + q.options.map((o) =>
-    o.price_usd == null ? `<tr><td>${WITHIN[o.within_s]}</td><td class="n" colspan="3">no pass</td></tr>`
-      : `<tr><td>${WITHIN[o.within_s]}</td><td>${usd(o.price_usd)}</td><td>${Math.round((o.pass_t - q.t) / 60)} min</td>
-         <td><button data-w="${o.within_s}">Simulate</button></td></tr>`).join("");
-  $("quote").onclick = (e) => {
-    const w = e.target.dataset.w;
-    if (!w) return;
-    fetch("api/jobs", { method: "POST", body: JSON.stringify({ image: target, deadline_s: +w }) })
-      .then((r) => r.json()).then(track);
-  };
+
+function customerPreset(c) {
+  const j = c.jobs[0], pj = j.per_job, dl = Math.min(86400, j.deadline_s);
+  const dur = Math.min(Math.max(60, dl * 0.4), 3600);
+  const cpu = Math.min(64, Math.max(1, Math.ceil(pj.cpu_core_h * 3600 / dur)));
+  const lat = j.latency && j.latency.seconds <= 3600 ? { [j.latency.kind === "p50" ? "p50" : "max"]: j.latency.seconds * 1000 } : null;
+  return { name: c.name, desc: `${c.domain}: ${j.type.replace("_", " ")}, ${j.jobs_per_day}/day, budget $${(c.budget_usd / 1e6).toFixed(1)}M/yr. ${c.budget_basis}`,
+    job: { cpu, memory_gb: Math.min(256, Math.round(pj.mem_gb_h / (dur / 3600))), storage_gb: pj.storage_gb,
+      duration_s: Math.round(dur), network: { gb: j.type === "relay_data" ? pj.isl_gb : pj.downlink_gb, ...(lat ? { latency_ms: lat } : {}) },
+      deadline_s: dl, max_price_usd: j.value_per_job_usd } };
+}
+
+async function loadPresets() {
+  presets = await (await fetch("presets.json")).json();
+  const cs = (await (await fetch("api/customers")).json()).customers.filter((c) => c.jobs && c.jobs.length)
+    .sort((a, b) => a.name.localeCompare(b.name)).map(customerPreset);
+  const opt = (p, i) => `<option value="${i}">${p.name}</option>`;
+  $("preset").innerHTML = `<optgroup label="Use cases">${presets.map(opt).join("")}</optgroup>`
+    + `<optgroup label="Customers">${cs.map((p, i) => opt(p, presets.length + i)).join("")}</optgroup>`;
+  presets = presets.concat(cs);
+  $("preset").onchange = () => pick(presets[+$("preset").value]);
+  pick(presets[0]);
+}
+
+function pick(p) {
+  preset = p;
+  $("desc").textContent = p.desc;
+  const j = p.job || {};
+  const v = { cpu: j.cpu, memory_gb: j.memory_gb, storage_gb: j.storage_gb, duration_s: j.duration_s,
+    gb: j.network && j.network.gb, deadline_s: p.deadline_s || j.deadline_s,
+    latency: j.network && j.network.latency_ms ? Object.values(j.network.latency_ms)[0] : "",
+    max_price_usd: j.max_price_usd, price_cap_usd: "" };
+  for (const [k, x] of Object.entries(v)) form.elements[k].value = x ?? "";
+  form.elements.reserve.checked = false;
+  form.style.display = p.image ? "none" : "";
+  requote();
+}
+
+function body() {
+  const f = form.elements, num = (k) => (f[k].value === "" ? undefined : +f[k].value);
+  if (preset.image) return { image: target, deadline_s: num("deadline_s") };
+  const b = { cpu: num("cpu") || 0, memory_gb: num("memory_gb") || 0, storage_gb: num("storage_gb") || 0,
+    duration_s: num("duration_s") || 0, deadline_s: num("deadline_s"), max_price_usd: num("max_price_usd") };
+  if (!preset.nolocation) b.location = target;
+  if (preset.job && preset.job.rate) b.rate = preset.job.rate;
+  if (num("gb")) {
+    b.network = { gb: num("gb") };
+    if (num("latency")) b.network.latency_ms = { [preset.job.network && preset.job.network.latency_ms && preset.job.network.latency_ms.p50 ? "p50" : "max"]: num("latency") };
+    if (preset.relay) b.network.to = Math.abs(target.lat - 51.5) + Math.abs(target.lon) < 20 ? { lat: 40.7, lon: -74 } : { lat: 51.5, lon: -0.1 };
+  }
+  if (f.reserve.checked) { b.priority = "reserve"; b.price_cap_usd = num("price_cap_usd") ?? num("max_price_usd"); }
+  return b;
+}
+
+let quoteTimer = null;
+function requote() {
+  clearTimeout(quoteTimer);
+  quoteTimer = setTimeout(async () => {
+    if (!preset) return;
+    if (preset.image) {
+      const q = await (await fetch(`api/quote?lat=${target.lat}&lon=${target.lon}`)).json();
+      $("quote").innerHTML = `<tr><th>Within</th><th>Price</th><th>Pass in</th><th></th></tr>` + q.options.map((o) =>
+        o.price_usd == null ? `<tr><td>${WITHIN[o.within_s]}</td><td class="n" colspan="3">no pass</td></tr>`
+          : `<tr><td>${WITHIN[o.within_s]}</td><td>${usd(o.price_usd)}</td><td>${Math.round((o.pass_t - q.t) / 60)} min</td>
+             <td><button data-w="${o.within_s}">Simulate</button></td></tr>`).join("");
+      $("quote").onclick = (e) => { const w = e.target.dataset.w; if (w) submit({ image: target, deadline_s: +w }); };
+      $("simulate").style.display = "none";
+      return;
+    }
+    $("simulate").style.display = "";
+    $("quote").onclick = null;
+    const r = await (await fetch("api/quote?mode=" + mode, { method: "POST", body: JSON.stringify(body()) })).json();
+    if (r.error || !r.feasible) { $("quote").innerHTML = `<tr><td class="n">${r.error || r.reason}</td></tr>`; return; }
+    const b = r.breakdown, rows = [["Compute", b.compute], ["Memory", b.memory], ["Storage", b.storage],
+      ["Route links", b.route], ["Downlink", b.downlink], ["Urgency premium", b.urgency_premium]];
+    $("quote").innerHTML = rows.filter(([, v]) => v != null).map(([k, v]) => `<tr><td>${k}</td><td>${usd(v)}</td></tr>`).join("")
+      + `<tr><td>Total now</td><td>${usd(r.total_usd)}</td></tr>`
+      + (r.wait_price_usd < r.total_usd - 0.005 ? `<tr><td class="n">If it waits</td><td class="n">${usd(r.wait_price_usd)}</td></tr>` : "")
+      + `<tr><td class="n">Satellite</td><td class="n">${r.sat}, ${r.region}</td></tr>`
+      + (r.per_hour_usd != null ? `<tr><td class="n">Per hour</td><td class="n">${usd(r.per_hour_usd)}</td></tr>` : "")
+      + (r.quotes && r.quotes.length ? `<tr><th>Quotes</th><th>${mode === "rfq" ? "paid = 2nd lowest" : ""}</th></tr>` + r.quotes.map((x, i) =>
+        `<tr><td class="${i ? "n" : ""}">sat ${x.sat}, owner ${x.owner}</td><td class="${i ? "n" : ""}">${usd(x.usd)}</td></tr>`).join("") : "");
+    highlight = { sat: r.sat, path: r.path };
+  }, 250);
+}
+form.addEventListener("input", requote);
+$("simulate").onclick = () => submit(body());
+function submit(b) {
+  fetch("api/jobs", { method: "POST", body: JSON.stringify(b) }).then((r) => r.json()).then(track);
 }
 
 let tracked = null;
@@ -414,6 +496,7 @@ function frame() {
   await loadConstellation();
   const h = await (await fetch("api/prices?mode=" + mode)).json();
   history.push(...h.history);
+  await loadPresets();
   setTarget(target.lat, target.lon);
   await poll();
   setInterval(poll, 1000);

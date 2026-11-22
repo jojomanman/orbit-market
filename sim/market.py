@@ -227,6 +227,7 @@ class Posted:
     Jobs are price takers in arrival order: take the cheapest feasible option, served iff value >= its price."""
 
     name, label, router = "posted", "Posted", "price"
+    vickrey = False
 
     def __init__(self, n_sats, n_isl, n_gs):
         self.densities = deque([5.0], maxlen=3000)
@@ -265,6 +266,33 @@ class Posted:
 
     def update(self, eng):
         pass
+
+
+class ReverseAuction(Posted):
+    """Request for quote, matched on arrival (Jonas 2026-11-22: no global tick, competition between satellites).
+
+    Every satellite that can physically serve the job quotes from its own load curve, the posted exponential
+    with its owner's floor (L x owner markup, never below its energy-aware reserve). Lowest quote wins and is paid
+    the second-lowest quote (Vickrey reverse auction: quoting true cost is each owner's best strategy), capped by
+    the bid; a lone quote is paid as quoted. Rejected if no quote is within the bid."""
+
+    name, label = "rfq", "RFQ auction"
+    vickrey = True
+
+    def prices(self, eng, geo, reserve):
+        pr = super().prices(eng, geo, reserve)
+        markup = eng.owner_markup
+        pr.cpu = np.maximum(pr.cpu * markup, reserve)
+        pr.mem = pr.mem * markup
+        pr.sto = pr.sto * markup
+        return pr
+
+    def reprice(self, eng, pr, s, reserve):
+        super().reprice(eng, pr, s, reserve)
+        m = eng.owner_markup[s]
+        pr.cpu[s] = max(pr.cpu[s] * m, reserve[s])
+        pr.mem[s] *= m
+        pr.sto[s] *= m
 
 
 class BatchAuction(Posted):
@@ -326,7 +354,8 @@ class Fixed(Posted):
         pass
 
 
-MODES = {c.name: c for c in (Posted, BatchAuction, Tatonnement, Fixed)}
+MODES = {c.name: c for c in (ReverseAuction, Posted, BatchAuction, Tatonnement, Fixed)}
+DEFAULT_MODE = "rfq"
 
 
 # -- engine -------------------------------------------------------------------------------------------------------
@@ -341,7 +370,7 @@ class Engine:
         self.tasks, self.flows, self.pending = [], [], []
         self.prev_load = (np.zeros(e), np.zeros(n), np.zeros(g))
         self.unmet = self._zero_unmet()
-        self.done = deque()       # (t, value, on_time, kind, customer)
+        self.done = deque()       # (t, value, on_time, kind, why it failed)
         self.lat_ms = deque()     # (t, ms) of admitted latency-bound jobs
         self.paid = deque()       # (t, $)
         self.net = None
@@ -351,7 +380,8 @@ class Engine:
         self.wx_flows = {}
         self.wx_stats = deque()   # (t, raw GB made, GB delivered, $ paid)
         self.wx_sats = np.nonzero(np.isin(con.shell, WEATHER_SHELLS))[0]
-        self.reserve_base = np.array([OWNER_MARKUP[o] for o in con.owner]) * 0.45
+        self.owner_markup = np.array([OWNER_MARKUP[o] for o in con.owner])
+        self.reserve_base = self.owner_markup * 0.45
         self.cust_done, self.cust_paid = [], []   # this tick, for per-customer stats
 
     def _zero_unmet(self):
@@ -431,8 +461,10 @@ class Engine:
 
     def _finish(self, job, now, ok=True):
         on_time = ok and now <= job["deadline"] + 1
-        job["result"] = {"t": now, "on_time": on_time}
-        self.done.append((now, job["value"], on_time, job["kind"], job.get("customer")))
+        # Why a job failed: priced out (no quote within its bid), no capacity in reach, or placed but late.
+        why = None if on_time else "late" if "placed" in job else job.get("why", "capacity")
+        job["result"] = {"t": now, "on_time": on_time, "why": why}
+        self.done.append((now, job["value"], on_time, job["kind"], why))
         if job.get("customer"):
             self.cust_done.append((job["customer"], on_time))
 
@@ -476,7 +508,9 @@ class Engine:
         free_s = self.fleet.storage - self.sto_used
         ground = self.net.ground_cost
         batch = isinstance(mode, BatchAuction)
-        for job in mode.order(self.pending):
+        queue = mode.order(self.pending)
+        queue = [j for j in queue if j.get("priority")] + [j for j in queue if not j.get("priority")]
+        for job in queue:
             if now + job["duration"] > job["deadline"]:
                 self._finish(job, now, ok=False)
                 continue
@@ -504,6 +538,7 @@ class Engine:
                     self.unmet["sto"][s0] += job["storage_gb"]
                 if batch and winners:
                     self._displaced(job, winners, cand)
+                job["why"] = "capacity"
                 keep.append(job)
                 continue
             h = job["duration"] / 3600
@@ -516,7 +551,12 @@ class Engine:
             else:
                 i = 0
             s, price = int(fit[i]), float(cost[i])
+            if getattr(mode, "vickrey", False) and price <= job["value"]:
+                price = min(float(np.partition(cost, 1)[1]) if len(cost) > 1 else price, job["value"])
+            if job.get("priority"):
+                price = min(price, job["price_cap"])
             if not mode.accept(job, price):
+                job["why"] = "price"
                 if job["deadline"] - now > RETRY_S + job["duration"]:
                     keep.append(job)    # re-bids later; long deadlines wait for a cheaper tick
                 else:
@@ -681,10 +721,12 @@ class Engine:
         on = sum(1 for x in d if x[2])
         lat = sorted(x[1] for x in self.lat_ms)
         rs = self.resource_state()
+        share = lambda why: round(sum(1 for x in d if x[4] == why) / n, 3) if n else None
         return {"welfare_per_h": round(sum(x[1] for x in d if x[2])),
                 "revenue_per_h": round(sum(x[1] for x in self.paid)),
                 "served": round(on / n, 3) if n else None,
-                "missed": round(1 - on / n, 3) if n else None,
+                "priced_out": share("price"),
+                "missed": round(sum(1 for x in d if x[4] in ("capacity", "late")) / n, 3) if n else None,
                 "p99_latency_ms": round(lat[int(0.99 * (len(lat) - 1))], 1) if lat else None,
                 "binding": max(rs, key=lambda r: (rs[r]["hot"], rs[r]["demand"])),
                 "jobs_per_h": n, "waiting": len(self.pending), "running": len(self.tasks), "flows": len(self.flows)}

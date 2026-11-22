@@ -47,9 +47,23 @@
     </div>
 
     <div class="block">
-      <div class="label">Image of a location <span id="target" class="dim"></span></div>
+      <div class="label">Price a job <span id="target" class="dim"></span></div>
+      <select id="preset"></select>
+      <div id="desc" class="dim"></div>
+      <form id="calc">
+        <label>CPU<input name="cpu" type="number" min="0" max="64" step="1"></label>
+        <label>Mem GB<input name="memory_gb" type="number" min="0" max="256"></label>
+        <label>Store GB<input name="storage_gb" type="number" min="0" max="8000"></label>
+        <label>Run s<input name="duration_s" type="number" min="0" max="86400"></label>
+        <label>Down GB<input name="gb" type="number" min="0" step="any"></label>
+        <label>Deadline s<input name="deadline_s" type="number" min="30" max="86400"></label>
+        <label>Latency ms<input name="latency" type="number" min="0" placeholder="none"></label>
+        <label>Max $<input name="max_price_usd" type="number" min="0" step="any"></label>
+        <label class="check"><input name="reserve" type="checkbox">Priority reserve</label>
+        <label>Cap $<input name="price_cap_usd" type="number" min="0" step="any"></label>
+      </form>
       <table id="quote"></table>
-      <div id="job" class="dim"></div>
+      <div class="actions"><button id="simulate">Simulate</button><span id="job" class="dim"></span></div>
     </div>
 
     <footer>

@@ -114,6 +114,7 @@ class Customers:
                     "elasticity": _num(j, "price_elasticity", 0, 5) if "price_elasticity" in j else 0.5})
             except (ValueError, KeyError, TypeError) as e:
                 self.problems.append(f"{org['id']}/{j.get('type', '?') if isinstance(j, dict) else '?'}: {e}")
+        org["raw_jobs"] = [j for j in o["jobs"] if isinstance(j, dict)]
         for n in o.get("need_changes") or []:
             if isinstance(n, dict) and isinstance(n.get("multiplier"), (int, float)):
                 org["needs"].append({"trigger": str(n.get("trigger", "")), "mult": float(n["multiplier"]),
@@ -183,6 +184,6 @@ class Customers:
 
     def table(self):
         return [{"id": o["id"], "name": o["name"], "domain": o["domain"], "budget_usd": o["budget"],
-                 "budget_basis": o["budget_basis"], "what": o["what"],
+                 "budget_basis": o["budget_basis"], "what": o["what"], "jobs": o["raw_jobs"],
                  "spend_today": round(self.spend.get(o["id"], 0)),
                  **self.stats.get(o["id"], {"served": 0, "missed": 0})} for o in self.orgs]

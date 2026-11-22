@@ -1,0 +1,199 @@
+[
+ {
+  "name": "Image of a location",
+  "desc": "One scene of the clicked point, analysed onboard, product delivered.",
+  "image": true,
+  "deadline_s": 900
+ },
+ {
+  "name": "Inference, 500 tokens/s",
+  "desc": "Rate reservation: model serving held on a satellite overhead, p95 under 50 ms, per hour.",
+  "job": {
+   "rate": {
+    "tokens_per_s": 500,
+    "p95_ms": 50
+   },
+   "duration_s": 3600,
+   "max_price_usd": 40
+  }
+ },
+ {
+  "name": "Insurance damage map",
+  "desc": "Post-event damage polygons over a city for claims triage.",
+  "job": {
+   "cpu": 32,
+   "memory_gb": 128,
+   "storage_gb": 400,
+   "duration_s": 1800,
+   "network": {
+    "gb": 5
+   },
+   "deadline_s": 21600,
+   "max_price_usd": 2500
+  }
+ },
+ {
+  "name": "Dark-ship detection",
+  "desc": "Radar vessel detections matched against AIS; mismatches reported.",
+  "job": {
+   "cpu": 8,
+   "memory_gb": 32,
+   "storage_gb": 60,
+   "duration_s": 300,
+   "network": {
+    "gb": 0.05
+   },
+   "deadline_s": 1800,
+   "max_price_usd": 400
+  }
+ },
+ {
+  "name": "Oil tank fill levels",
+  "desc": "Floating-roof shadow measurement over a tank farm.",
+  "job": {
+   "cpu": 4,
+   "memory_gb": 16,
+   "storage_gb": 20,
+   "duration_s": 600,
+   "network": {
+    "gb": 0.01
+   },
+   "deadline_s": 21600,
+   "max_price_usd": 150
+  }
+ },
+ {
+  "name": "Port berth occupancy",
+  "desc": "Ships at berth and at anchor, queue length.",
+  "job": {
+   "cpu": 4,
+   "memory_gb": 16,
+   "storage_gb": 15,
+   "duration_s": 300,
+   "network": {
+    "gb": 0.01
+   },
+   "deadline_s": 3600,
+   "max_price_usd": 80
+  }
+ },
+ {
+  "name": "Wildfire watch, 10 min",
+  "desc": "Hotspot detection and spread vector, every 10 minutes.",
+  "job": {
+   "cpu": 8,
+   "memory_gb": 32,
+   "storage_gb": 10,
+   "duration_s": 120,
+   "network": {
+    "gb": 0.02
+   },
+   "deadline_s": 600,
+   "max_price_usd": 120
+  }
+ },
+ {
+  "name": "Emergency comms relay",
+  "desc": "Direct-to-device traffic surge carried over the mesh.",
+  "relay": true,
+  "job": {
+   "duration_s": 1800,
+   "network": {
+    "gb": 50,
+    "latency_ms": {
+     "max": 150
+    }
+   },
+   "deadline_s": 1800,
+   "max_price_usd": 900
+  }
+ },
+ {
+  "name": "Methane leak detection",
+  "desc": "Plume detection over oil and gas assets from spectral bands.",
+  "job": {
+   "cpu": 16,
+   "memory_gb": 64,
+   "storage_gb": 50,
+   "duration_s": 900,
+   "network": {
+    "gb": 0.1
+   },
+   "deadline_s": 21600,
+   "max_price_usd": 600
+  }
+ },
+ {
+  "name": "Crop yield forecast",
+  "desc": "Field-level yield model over a growing region.",
+  "job": {
+   "cpu": 64,
+   "memory_gb": 256,
+   "storage_gb": 2000,
+   "duration_s": 3600,
+   "network": {
+    "gb": 2
+   },
+   "deadline_s": 86400,
+   "max_price_usd": 1500
+  }
+ },
+ {
+  "name": "InSAR ground motion",
+  "desc": "Millimetre subsidence of dams, rail and pipelines from radar pairs.",
+  "job": {
+   "cpu": 64,
+   "memory_gb": 256,
+   "storage_gb": 1500,
+   "duration_s": 7200,
+   "network": {
+    "gb": 5
+   },
+   "deadline_s": 86400,
+   "max_price_usd": 1200
+  }
+ },
+ {
+  "name": "Parking and footfall",
+  "desc": "Cars and people counted over retail sites.",
+  "job": {
+   "cpu": 2,
+   "memory_gb": 8,
+   "storage_gb": 5,
+   "duration_s": 120,
+   "network": {
+    "gb": 0.001
+   },
+   "deadline_s": 3600,
+   "max_price_usd": 25
+  }
+ },
+ {
+  "name": "Count cars here now",
+  "desc": "One API call: a count from the satellite overhead.",
+  "job": {
+   "cpu": 1,
+   "memory_gb": 4,
+   "storage_gb": 2,
+   "duration_s": 30,
+   "network": {
+    "gb": 0.0001
+   },
+   "deadline_s": 120,
+   "max_price_usd": 2
+  }
+ },
+ {
+  "name": "Batch overflow",
+  "desc": "Low-priority compute, wherever it is cheapest.",
+  "nolocation": true,
+  "job": {
+   "cpu": 64,
+   "memory_gb": 256,
+   "storage_gb": 200,
+   "duration_s": 3600,
+   "deadline_s": 86400,
+   "max_price_usd": 30
+  }
+ }
+]
