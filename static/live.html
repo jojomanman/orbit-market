@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Orbit Market · Live</title>
+<link rel="icon" href="data:,">
 <style>
 :root {
   --bg: #07090c; --panel: #0c1015; --line: #1a2129; --text: #c9d1d9; --dim: #6b7681;
@@ -23,13 +24,14 @@ nav { display: flex; gap: calc(2 * var(--u)); }
 #rates b { display: block; font-size: 22px; font-weight: 600; color: var(--b); }
 #rates span, .label { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
 #board { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)) minmax(0, .7fr); gap: var(--u); min-height: 0; }
-.col { display: grid; grid-template-rows: auto 1fr auto; background: var(--panel); border: 1px solid var(--line);
-  min-height: 0; overflow: hidden; }
+.col { display: grid; grid-template: auto 1fr auto / minmax(0, 1fr); background: var(--panel); border: 1px solid var(--line);
+  min-height: 0; }
 .col > header { display: grid; grid-template-columns: 1fr auto; padding: var(--u); border-bottom: 1px solid var(--line); }
 .col > header b { font-size: 18px; font-weight: 600; text-align: right; }
 .col[data-s=delivered] > header b { color: var(--c); }
 .col[data-s=rejected] > header b { color: var(--r); }
-.list { display: flex; flex-direction: column; gap: 4px; padding: 4px; overflow: hidden; }
+/* Clip only the bottom overflow: a card sliding over from another column must stay visible on its way. */
+.list { display: flex; flex-direction: column; gap: 4px; padding: 4px; min-height: 0; clip-path: inset(0 -100vw); }
 .more { color: var(--dim); font-size: 11px; text-align: right; padding: 0 var(--u) 4px; min-height: 19px; }
 .card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--u); padding: 5px 7px;
   background: var(--bg); border: 1px solid var(--line); border-left: 2px solid var(--a); font-size: 12px;
@@ -41,6 +43,11 @@ nav { display: flex; gap: calc(2 * var(--u)); }
 .card.delivered { border-left-color: var(--c); }
 .card.rejected { border-left-color: var(--r); }
 .card.rejected .d { color: var(--r); }
+@media (max-width: 900px) {
+  header { grid-template-columns: auto 1fr; }
+  #rates { grid-column: 1 / -1; justify-content: flex-start; }
+  #board { grid-template-columns: repeat(8, 150px) 120px; overflow-x: auto; }
+}
 .card.new { opacity: 0; }
 .card.gone { opacity: 0; }
 </style>

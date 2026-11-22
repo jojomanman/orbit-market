@@ -21,14 +21,27 @@ STAGES = ["incoming", "quoted", "matched", "uplink", "compute", "relay", "downli
 CAP = 12
 WINDOW_S = 600   # sim seconds the rates average over
 
+# Display names that do not shorten by rule (their acronym is not in the name, or the short form is a word).
+SHORT = {"jma": "JMA", "imd": "IMD", "bayer-crop-science": "Bayer", "wri-global-forest-watch": "WRI",
+         "us-nro": "US NRO", "us-nga": "US NGA", "us-sda": "US SDA", "us-coast-guard": "US Coast Guard",
+         "se-forsvarsmakten": "Swedish Forces", "eu-emsa": "EMSA", "esa": "ESA", "uk-mod": "UK MOD",
+         "fr-cde": "French Space Cmd", "de-bundeswehr": "Bundeswehr", "ua-mod": "Ukraine MOD",
+         "au-defence": "Australia Defence", "ca-dnd": "Canada DND", "in-dsa": "India DSA", "il-imod": "Israel MOD",
+         "copernicus-ems": "Copernicus EMS", "intl-charter-space-disasters": "Disasters Charter",
+         "verisk-extreme-event": "Verisk", "descartes-underwriting": "Descartes", "fermat-capital": "Fermat Capital",
+         "ursa-space": "Ursa Space", "sp-global-commodity-insights": "S&P Global", "maersk": "Maersk", "msc": "MSC",
+         "aws": "AWS", "microsoft-azure-space": "Microsoft Azure", "here-technologies": "HERE",
+         "viasat-inmarsat-maritime": "Inmarsat"}
 _names = {}
 
 
 def short_name(org):
+    """The customer's name as it fits a card: the name itself, else its acronym in brackets, else SHORT."""
     if org["id"] not in _names:
-        m = re.search(r"\(([A-Z][A-Z0-9&-]{1,11})\)", org["name"])   # an acronym, not "(with GUR)"
-        name = m.group(1) if m else org["name"] if len(org["name"]) <= 18 else org["id"].replace("_", " ").upper()
-        _names[org["id"]] = name
+        base = org["name"].split(" (")[0].split(",")[0]
+        m = re.search(r"\(([A-Z][A-Za-z&]{1,6})\)", org["name"])
+        acronym = m.group(1) if m and sum(ch.isupper() for ch in m.group(1)) >= 2 else None
+        _names[org["id"]] = base if len(base) <= 16 else SHORT.get(org["id"]) or acronym or base
     return _names[org["id"]]
 
 
@@ -37,8 +50,8 @@ def build(engine, orgs, now, tick_s):
     by_id = {o["id"]: o for o in orgs}
     cols = {s: [] for s in STAGES}
 
-    # Lower key shows first: in queues and outcomes the newest, in the work stages the job closest to moving on, so
-    # the visible cards are the ones about to slide right rather than a list that churns every tick.
+    # Newest first in every column (lower key shows first): the cards that moved last tick stay in view in their
+    # new column, so the page can slide them there instead of fading them out.
     def add(stage, j, key):
         org = by_id.get(j.get("customer"))
         if org is None:
@@ -52,12 +65,12 @@ def build(engine, orgs, now, tick_s):
         placed = j["placed"]["t"]
         up_s = max(j["storage_gb"] - j["out_gb"], 0) * 8 / ph.DOWNLINK_GBPS
         stage = "matched" if placed >= now else "uplink" if now - placed < up_s else "compute"
-        add(stage, j, -placed if stage == "matched" else placed + up_s - now if stage == "uplink" else t["left"])
+        add(stage, j, -placed)
     for f in list(engine.flows):
         j = f["job"]
         placed = j.get("placed", {}).get("t", now)
         stage = "matched" if placed >= now else "downlink" if "down_t" in j and "dst" not in f else "relay"
-        add(stage, j, -placed if stage == "matched" else f["gb_left"])
+        add(stage, j, -(j.get("down_t") or placed))
     for j in list(engine.finished)[-200:]:
         r = j["result"]
         if r["t"] >= now - 3 * tick_s:
