@@ -17,35 +17,50 @@ export function createOverview({ scene, earth, nodePos, llToLocal, satCount, sta
   const lineObj = new THREE.LineSegments(lines, new THREE.LineBasicMaterial({
     vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
 
-  // Packets, busy-satellite glows, trade rings and delivery flashes share one point buffer: size and alpha per point,
-  // ring = 1 draws an outline instead of a dot.
+  // Packets and busy-satellite glows share one point buffer, size and alpha per point.
   const pts = new THREE.BufferGeometry();
-  const pPos = new Float32Array(MAX_PT * 3), pCol = new Float32Array(MAX_PT * 3), pAux = new Float32Array(MAX_PT * 3);
+  const pPos = new Float32Array(MAX_PT * 3), pCol = new Float32Array(MAX_PT * 3), pAux = new Float32Array(MAX_PT * 2);
   pts.setAttribute("position", new THREE.BufferAttribute(pPos, 3));
   pts.setAttribute("color", new THREE.BufferAttribute(pCol, 3));
-  pts.setAttribute("aux", new THREE.BufferAttribute(pAux, 3));
+  pts.setAttribute("aux", new THREE.BufferAttribute(pAux, 2));
   const ptObj = new THREE.Points(pts, new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-    vertexShader: `attribute vec3 color; attribute vec3 aux; varying vec3 vC; varying float vA; varying float vR;
-      void main(){ vC = color; vA = aux.y; vR = aux.z; vec4 mv = modelViewMatrix*vec4(position,1.);
+    vertexShader: `attribute vec3 color; attribute vec2 aux; varying vec3 vC; varying float vA;
+      void main(){ vC = color; vA = aux.y; vec4 mv = modelViewMatrix*vec4(position,1.);
       gl_PointSize = aux.x * (3.5 / -mv.z); gl_Position = projectionMatrix*mv; }`,
-    fragmentShader: `varying vec3 vC; varying float vA; varying float vR; void main(){
+    fragmentShader: `varying vec3 vC; varying float vA; void main(){
       float d = length(gl_PointCoord-0.5); if (d > 0.5) discard;
-      float a = vR > 0.5 ? smoothstep(0.32, 0.42, d) * (1.0 - smoothstep(0.45, 0.5, d)) : 1.0 - smoothstep(0.15, 0.5, d);
-      gl_FragColor = vec4(vC, vA * a); }`,
+      gl_FragColor = vec4(vC, vA * (1.0 - smoothstep(0.15, 0.5, d))); }`,
   }));
   const group = new THREE.Group();
   group.add(lineObj, ptObj);
   group.visible = false;
   scene.add(group);
 
+  // Pings (Jonas 15:25 "the pings on the map look bad"): one thin ring lying on the ground, a trade at the customer or a
+  // delivery at the station. Instanced on the Earth so the globe hides the far side; additive, so colour x alpha fades.
+  const PING_MAX = 30, PING_S = 0.8, PING_R = 0.05;
+  const pingMesh = new THREE.InstancedMesh(new THREE.RingGeometry(0.93, 1, 64),
+    new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), PING_MAX);
+  pingMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  pingMesh.setColorAt(0, COL[0]);
+  pingMesh.frustumCulled = false;
+  pingMesh.visible = false;
+  earth.add(pingMesh);
+
   let feed = null, lastT = null, clock = 0;
-  const fx = [];            // {at: () => Vector3, c, born, life, size, ring}
-  const ended = new Map();  // flow key -> last node, to flash at the station when a delivery finishes
-  let prevFlows = new Map(), prevDone = new Set();
+  const pings = [];         // {p: surface point in Earth coordinates, c, born}
+  const lastPing = new Map();  // ~4 degree cell -> start, so one busy city never piles rings up
+  let prevFlows = new Map();
+  const Z = new THREE.Vector3(0, 0, 1);
+  function ping(p, c, at) {
+    const cell = `${Math.round(Math.asin(p.y) * 45)},${Math.round(Math.atan2(p.z, p.x) * 45)}`;
+    if (pings.length >= PING_MAX || at - (lastPing.get(cell) ?? -9) < 1.5) return;
+    lastPing.set(cell, at);
+    pings.push({ p: p.multiplyScalar(1.002), c, born: at });
+  }
 
   const ground = (lat, lon) => { const l = llToLocal(lat, lon, 1.0); return () => new THREE.Vector3(...l).applyMatrix4(earth.matrixWorld); };
-  const node = (id) => () => nodePos(id, new THREE.Vector3());
 
   async function poll() {
     if (!group.visible) return;
@@ -55,17 +70,11 @@ export function createOverview({ scene, earth, nodePos, llToLocal, satCount, sta
       lastT = f.t;
       const N = satCount(), born = clock;
       // A tick's events are spread over the next ~2 s instead of popping together.
-      for (const [lat, lon, y] of f.new) fx.push({ at: ground(lat, lon), c: COL[y], born: born + Math.random() * 2, life: 1.4, size: 46, ring: 1 });
+      for (const [lat, lon, y] of f.new) ping(new THREE.Vector3(...llToLocal(lat, lon, 1)), COL[y], born + Math.random() * 2);
       const flows = new Map(f.flows.map((x) => [x[0].join(","), x]));
       for (const [k, x] of prevFlows) if (!flows.has(k) && x[0][x[0].length - 1] >= N)
-        fx.push({ at: node(x[0][x[0].length - 1]), c: COL[x[2]], born: born + Math.random() * 2, life: 0.9, size: 30, ring: 0 });
-      const done = new Set(f.tasks.filter((t) => t[3] > 0.85).map((t) => t.join(",")));
-      for (const k of prevDone) if (!done.has(k) && Math.random() < 0.5) {
-        const [s, , y] = k.split(",").map(Number);
-        fx.push({ at: node(s), c: COL[y], born: born + Math.random() * 2, life: 0.8, size: 18, ring: 0 });
-      }
-      prevFlows = flows; prevDone = done;
-      while (fx.length > 600) fx.shift();
+        ping(earth.worldToLocal(nodePos(x[0][x[0].length - 1], new THREE.Vector3())).normalize(), COL[x[2]], born + Math.random() * 2);
+      prevFlows = flows;
       feed = f;
       renderPane(f);
     } catch (e) { /* next poll retries */ }
@@ -105,9 +114,15 @@ export function createOverview({ scene, earth, nodePos, llToLocal, satCount, sta
 
   // ---- per frame ------------------------------------------------------------------------------------------------
   const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), ua = new THREE.Vector3(), ub = new THREE.Vector3();
+  const ringM = new THREE.Matrix4(), ringQ = new THREE.Quaternion(), ringN = new THREE.Vector3(), ringS = new THREE.Vector3();
+  const ringC = new THREE.Color();
   const poly = [];   // reused polyline of the current route
   for (let i = 0; i < 64; i++) poly.push(new THREE.Vector3());
-  function frame(dt) {
+  // Real elapsed time x playback speed, so pings and packets keep their pace at any frame rate.
+  let lastNow = performance.now();
+  function frame(play) {
+    const now = performance.now(), dt = Math.min(0.1, (now - lastNow) / 1000) * play;
+    lastNow = now;
     if (!group.visible || !feed) return;
     clock += dt;
     let k = 0, q = 0;
@@ -116,9 +131,9 @@ export function createOverview({ scene, earth, nodePos, llToLocal, satCount, sta
       lPos.set([p.x, p.y, p.z, r.x, r.y, r.z], k * 6);
       lCol.set([col.r * w, col.g * w, col.b * w, col.r * w, col.g * w, col.b * w], k++ * 6);
     };
-    const dot = (p, col, size, alpha, ring = 0) => {
+    const dot = (p, col, size, alpha) => {
       if (q >= MAX_PT) return;
-      pPos.set([p.x, p.y, p.z], q * 3); pCol.set([col.r, col.g, col.b], q * 3); pAux.set([size, alpha, ring], q++ * 3);
+      pPos.set([p.x, p.y, p.z], q * 3); pCol.set([col.r, col.g, col.b], q * 3); pAux.set([size, alpha], q++ * 2);
     };
     const N = satCount();
 
@@ -165,13 +180,19 @@ export function createOverview({ scene, earth, nodePos, llToLocal, satCount, sta
       }
     }
 
-    // Trade rings at the customer, delivery flashes at the station.
-    for (let i = fx.length - 1; i >= 0; i--) {
-      const e = fx[i], age = (clock - e.born) / e.life;
-      if (age >= 1) { fx.splice(i, 1); continue; }
+    // Pings: radius eases out to PING_R (~35 px across at the default zoom), alpha falls to 0.
+    let m = 0;
+    for (let i = pings.length - 1; i >= 0; i--) {
+      const e = pings[i], age = (clock - e.born) / PING_S;
+      if (age >= 1) { pings.splice(i, 1); continue; }
       if (age < 0) continue;
-      dot(e.at(), e.c, e.size * (e.ring ? 0.3 + age : 1 - 0.5 * age), (1 - age) * (e.ring ? 0.9 : 0.8), e.ring);
+      const r = PING_R * (0.15 + 0.85 * (1 - (1 - age) ** 3));
+      ringM.compose(e.p, ringQ.setFromUnitVectors(Z, ringN.copy(e.p).normalize()), ringS.setScalar(r));
+      pingMesh.setMatrixAt(m, ringM);
+      pingMesh.setColorAt(m++, ringC.copy(e.c).multiplyScalar(0.55 * (1 - age) ** 2));
     }
+    pingMesh.count = m;
+    pingMesh.instanceMatrix.needsUpdate = pingMesh.instanceColor.needsUpdate = true;
 
     lines.setDrawRange(0, k * 2);
     lines.attributes.position.needsUpdate = lines.attributes.color.needsUpdate = true;
@@ -180,7 +201,7 @@ export function createOverview({ scene, earth, nodePos, llToLocal, satCount, sta
   }
 
   function setOn(on) {
-    group.visible = on;
+    group.visible = pingMesh.visible = on;
     if (on) poll();
   }
   $("llegend").innerHTML = TYPES.map(([n, c]) => `<span><i style="background:#${c.toString(16).padStart(6, "0")}"></i>${n}</span>`).join("");

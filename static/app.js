@@ -786,7 +786,7 @@ function frame() {
     earth.updateMatrixWorld();
     propagate(t);
     drawRoutes(1 / 60);
-    overview.frame(play / 60);
+    overview.frame(play);
   }
   controls.update();
   renderer.render(scene, camera);
