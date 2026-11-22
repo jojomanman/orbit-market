@@ -20,7 +20,7 @@ const camera = new THREE.PerspectiveCamera(35, 1, 0.01, 200);
 camera.position.set(1.6, 1.4, 3.6);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.minDistance = 1.2;
+controls.minDistance = 0.3;
 controls.maxDistance = 8;
 controls.autoRotate = true;
 controls.autoRotateSpeed = 0.15;
@@ -318,6 +318,9 @@ const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
 const marker = new THREE.Mesh(new THREE.RingGeometry(0.012, 0.018, 32),
   new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }));
 earth.add(marker);
+// The calculator's target belongs to the Details drawer; on the walkthrough it would read as a step marker.
+marker.visible = false;
+document.querySelector("details").addEventListener("toggle", (e) => { marker.visible = e.target.open; });
 let down = null;
 renderer.domElement.addEventListener("pointerdown", (e) => { down = [e.clientX, e.clientY]; });
 renderer.domElement.addEventListener("pointerup", (e) => {
@@ -454,7 +457,7 @@ let highlight = null;
 // ---- walkthrough: one real job under the contract model, one step per Next --------------------------------------
 // The server plans the whole relay route at match time (api/featured plan.legs, each leg frozen at its planned
 // instant), so every step is a fixed scene: camera target, clock target and speed, the active leg and its prices.
-let tx = null, steps = [], si = 0, walkT = null, stepAt = 0, clockFrom = 0, camFrom = null;
+let tx = null, steps = [], si = 0, walkT = null, stepAt = 0, clockFrom = 0, tgtFrom = null, offFrom = null;
 const mmss = (s) => s == null ? "" : `+${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 const mins = (s) => s < 90 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`;
 const ms = (v) => `${v.toFixed(1)} ms`;
@@ -528,7 +531,8 @@ async function loadTx(next) {
 }
 function go(i) {
   si = Math.max(0, Math.min(steps.length - 1, i));
-  stepAt = performance.now(); walkT ??= steps[si].t; clockFrom = walkT; camFrom = camera.position.clone(); steeredAt = -1e9;
+  stepAt = performance.now(); walkT ??= steps[si].t; clockFrom = walkT;
+  tgtFrom = controls.target.clone(); offFrom = camera.position.clone().sub(tgtFrom); steeredAt = -1e9;
   buildRoute();
   renderStep();
 }
@@ -630,7 +634,8 @@ function buildRoute() {
 const ease = (x) => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 let steeredAt = -1e9;
 controls.addEventListener("start", () => { steeredAt = performance.now(); });
-const camDir = new THREE.Vector3(), camTo = new THREE.Vector3(), scr = new THREE.Vector3();
+const tgt = new THREE.Vector3(), off = new THREE.Vector3(), tilt = new THREE.Vector3(), scr = new THREE.Vector3();
+const ORIGIN = new THREE.Vector3();
 // Clock, camera, markers: called every frame, returns the walkthrough's sim time.
 function walkFrame(dt) {
   const s = steps[si], now = performance.now(), dur = (s.tween || 1.1) * 1000, k = Math.min(1, (now - stepAt) / dur);
@@ -640,11 +645,18 @@ function walkFrame(dt) {
   $("wspeed").textContent = `time ×${shown >= 10 ? Math.round(shown).toLocaleString("en-US") : shown >= 1 ? shown.toFixed(0) : shown.toPrecision(1)}`;
   $("wclock").textContent = new Date(walkT * 1000).toISOString().slice(11, 19) + " UTC";
   if (s.focus.live) nodeAt(s.focus.node, walkT, focusP);
+  // Orbit around the active node, looking down at it at an angle so up and down links keep their length on screen;
+  // the whole-route step orbits the Earth's centre.
   if (steeredAt < stepAt) {
-    camTo.copy(focusP).normalize().multiplyScalar(s.dist);
     const c = ease(Math.min(1, (now - stepAt) / 1100));
-    camDir.copy(camFrom).normalize().lerp(camTo.clone().normalize(), c).normalize();
-    camera.position.copy(camDir.multiplyScalar(camFrom.length() + (s.dist - camFrom.length()) * c));
+    off.copy(focusP).normalize();
+    if (!s.focus.route) off.applyAxisAngle(tilt.crossVectors(off, Y).normalize(), 0.5);
+    off.multiplyScalar(s.focus.route ? s.dist : s.dist - 1);
+    tgt.copy(s.focus.route ? ORIGIN : focusP);
+    const len = offFrom.length() + (off.length() - offFrom.length()) * c;
+    controls.target.lerpVectors(tgtFrom, tgt, c);
+    camera.position.copy(off.normalize().multiplyScalar(c).add(tilt.copy(offFrom).normalize().multiplyScalar(1 - c))
+      .normalize().multiplyScalar(len).add(controls.target));
   }
   const pulse = 1 + 0.35 * Math.sin(now / 180);
   focusRing.position.copy(focusP); focusDot.position.copy(focusP);
@@ -657,7 +669,7 @@ function walkFrame(dt) {
     const x = Math.min(n - 1e-6, u * n), i = Math.floor(x);
     packet.position.lerpVectors(packetPath[2 * i], packetPath[2 * i + 1], x - i); packet.scale.setScalar(0.014 * d);
   }
-  camera.updateMatrixWorld();
+  camera.lookAt(controls.target); camera.updateMatrixWorld();
   scr.copy(focusP).project(camera);
   const lab = $("wlabel");
   lab.style.transform = `translate(${(scr.x + 1) / 2 * host.clientWidth + 40}px, ${(1 - scr.y) / 2 * host.clientHeight - 9}px)`;
