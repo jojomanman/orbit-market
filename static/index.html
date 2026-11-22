@@ -10,12 +10,22 @@
 </head>
 <body>
 <main>
-  <section id="globe"><div id="wlabel" hidden></div><div id="wtime"><span id="wspeed"></span><span id="wclock"></span></div></section>
+  <section id="globe"><div id="wlabel" hidden></div><div id="wtime"><span id="play"><button id="pause">Pause</button><span id="speeds" class="seg"></span></span><span id="wspeed"></span><span id="wclock"></span></div></section>
   <aside>
     <header>
       <h1>Orbit Market <a href="network" style="margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--dim); text-decoration: none">Network</a><a href="live" style="margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--dim); text-decoration: none">Live</a></h1>
       <span id="clock"></span>
+      <div class="seg" id="views"><button data-v="live">Live</button><button data-v="walk">Follow a job</button></div>
     </header>
+
+    <section id="live" hidden>
+      <div id="lnums"></div>
+      <div>
+        <div class="label">Trades clearing</div>
+        <table><tbody id="lticker"></tbody></table>
+      </div>
+      <div id="llegend"></div>
+    </section>
 
     <section id="walk">
       <div class="label" id="wstep"></div>

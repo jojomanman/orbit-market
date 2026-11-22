@@ -89,9 +89,10 @@ aside { padding-bottom: calc(12 * var(--u)); }
 .facts tr + tr td, #wcost tr + tr td { border-top: 1px solid var(--line); }
 #wcost tr.win td { color: var(--hot); }
 #wcost tr.tot td { color: var(--text); font-weight: 600; }
+#wcost td.calc { color: var(--dim); }
 #wtotal { display: flex; justify-content: space-between; align-items: baseline; }
 #wtotal span { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
-#wtotal b { font-size: 28px; font-weight: 600; color: var(--hot); }
+#wtotal b { font-size: 34px; font-weight: 600; color: var(--hot); }
 #wtotal:empty, #wcost:empty { display: none; }
 #wnav { position: fixed; right: 0; bottom: 0; width: 400px; height: calc(9 * var(--u)); padding: 0 calc(3 * var(--u));
   display: grid; grid-template-columns: 96px minmax(0, 1fr) 96px; align-items: center; gap: calc(2 * var(--u));
@@ -114,3 +115,26 @@ aside { padding-bottom: calc(12 * var(--u)); }
   main { grid-template-columns: 1fr; grid-template-rows: 55vh auto; height: auto; }
   aside { border-left: 0; border-top: 1px solid var(--line); }
 }
+#views { width: calc(26 * var(--u)); }
+#live { display: grid; gap: calc(3 * var(--u)); }
+#live[hidden], #walk[hidden], #wnav[hidden] { display: none; }
+#lnums { display: grid; grid-template-columns: 1fr 1fr; gap: calc(2 * var(--u)); }
+#lnums div { display: grid; gap: 4px; padding: var(--u) 0; border-top: 1px solid var(--line); }
+#lnums span { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+#lnums b { font-size: 28px; font-weight: 600; color: var(--hot); text-align: right; }
+#lnums small { font-size: 13px; font-weight: 400; color: var(--dim); }
+#lticker td { padding: 4px 0; white-space: nowrap; vertical-align: top; border-top: 1px solid var(--line); }
+#lticker td + td { text-align: right; padding-left: calc(2 * var(--u)); }
+#lticker td:last-child { color: var(--dim); }
+#lticker small { display: block; color: var(--dim); font-size: 11px; padding-left: 14px; }
+#lticker i, #llegend i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
+#lticker tr.new td { animation: lnew 1.2s ease-out; }
+@keyframes lnew { from { background: var(--line); } to { background: none; } }
+#llegend { display: flex; gap: calc(2 * var(--u)); color: var(--dim); font-size: 11px; }
+#play { display: flex; gap: var(--u); pointer-events: auto; }
+#play button { background: rgba(7, 9, 12, .7); border: 1px solid var(--line); color: var(--text); font: inherit; font-size: 11px;
+  padding: 4px var(--u); cursor: pointer; }
+#play .seg button + button { border-left: 0; }
+#play .seg button.on { background: var(--line); }
+#wtime { align-items: center; }
+#clock { display: none; }

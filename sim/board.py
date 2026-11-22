@@ -94,3 +94,40 @@ def build(engine, orgs, now, tick_s):
     usd = sum(u for t, u in list(engine.paid) if t >= cut)
     return {"t": now, "counts": counts, "more": more, "cards": cards,
             "per_min": {"jobs": round(done * 60 / WINDOW_S, 1), "usd": round(usd * 60 / WINDOW_S, 2)}}
+
+
+# Live overview colour classes, by what the customer bought.
+TYPE = {"image_area": 0, "monitor_track": 0, "process_onboard": 1, "train_model": 1, "store": 1,
+        "relay_data": 2, "downlink_bulk": 3}
+MAX_TASKS, MAX_FLOWS, TICKER = 900, 400, 14
+
+
+def flows(engine, orgs, now, tick_s, n_sats):
+    """Everything in motion in one market, for the main page's Live mode (Jonas 15:11: "the live view of all the
+    ongoing trades and data transfer ... a lot going on at once"). Compact arrays, built once per tick like build():
+    tasks [entry sat, uplink node or -1, type, progress], flows [path, Gbps, type, progress], trades placed this tick
+    [lat, lon, type, sat, uplink node or -1] and a ticker of the newest placements. Ground nodes are n_sats + station
+    index, as in api/state routes."""
+    by_id = {o["id"]: o for o in orgs}
+    gs = lambda j: n_sats + j["uplink_gs"] if "uplink_gs" in j else -1
+    typ = lambda j: TYPE.get(j.get("ctype"), 1 if j["kind"] == "batch" else 2 if j["kind"] == "relay" else 0)
+    tasks = [[int(t["sat"]), gs(t["job"]), typ(t["job"]), round(1 - t["left"] / max(t["job"]["duration"], 1e-9), 3)]
+             for t in list(engine.tasks)[-MAX_TASKS:]]
+    moving = sorted((f for f in list(engine.flows) if f.get("path") and f.get("rate", 0) > 0), key=lambda f: -f["rate"])
+    fl = [[[int(n) for n in f["path"]], round(f["rate"], 3), typ(f["job"]),
+           round(1 - f["gb_left"] / max(f["job"]["out_gb"], 1e-9), 3)] for f in moving[:MAX_FLOWS]]
+    placed = [j for j in [t["job"] for t in list(engine.tasks)] + [f["job"] for f in list(engine.flows)]
+              if j.get("placed", {}).get("t", -1) >= now and j.get("customer") in by_id]
+    placed.sort(key=lambda j: -j["arrival"])
+    new = [[round(j["location"][0], 2), round(j["location"][1], 2), typ(j), int(j["placed"]["sat"]), gs(j)]
+           for j in placed if j.get("location")]
+    ticker = [{"id": f"{j['id']}-{j['arrival']:.0f}", "c": short_name(by_id[j["customer"]]),
+               "k": j.get("ctype", j["kind"]).replace("_", " "), "y": typ(j), "usd": round(j["placed"]["price"], 2),
+               "sat": int(j["placed"]["sat"]), "gs": gs(j), "path": j["placed"].get("path"),
+               "loc": [round(x, 2) for x in j["location"]] if j.get("location") else None, "t": now}
+              for j in placed[:TICKER]]
+    cut = now - WINDOW_S
+    paid = [u for t, u in list(engine.paid) if t >= cut]
+    return {"t": now, "tasks": tasks, "flows": fl, "new": new, "ticker": ticker,
+            "gbps": round(sum(f["rate"] for f in moving), 1), "running": len(engine.tasks),
+            "per_min": {"trades": round(len(paid) * 60 / WINDOW_S, 1), "usd": round(sum(paid) * 60 / WINDOW_S, 2)}}

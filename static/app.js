@@ -2,6 +2,7 @@
 // api/constellation; the server sends only market state (api/state) once per tick.
 import * as THREE from "three";
 import { OrbitControls } from "./vendor/OrbitControls.js";
+import { createOverview } from "./overview.js";
 
 const RE = 6378.137, MU = 398600.4418;
 const RES = ["compute", "memory", "storage", "isl", "downlink"];
@@ -172,11 +173,38 @@ function simTime() {
   const now = performance.now(), dt = Math.min(0.1, (now - lastFrame) / 1000);
   lastFrame = now;
   if (simT === null) return Date.now() / 1000;
-  simT += dt * rate;
-  const target = lastSrv.t + (now - lastSrv.at) / 1000 * rate;
-  simT += (target - simT) * Math.min(1, dt * 0.5);
+  simT += dt * rate * play;
+  // Paused or replayed faster, the view runs on its own clock; at 1x it follows the server again.
+  if (play === 1) simT += (lastSrv.t + (now - lastSrv.at) / 1000 * rate - simT) * Math.min(1, dt * 0.5);
   return simT;
 }
+
+// ---- playback and view mode -------------------------------------------------------------------------------------
+const SPEEDS = [0.25, 1, 4, 16, 60];
+let play = 1, speed = 1, liveView = true, overview = null;
+function setPlay(p) {
+  if (p === 1 && play !== 1 && lastSrv) simT = lastSrv.t + (performance.now() - lastSrv.at) / 1000 * rate;
+  if (p) speed = p;
+  play = p;
+  $("pause").textContent = play ? "Pause" : "Play";
+  for (const b of $("speeds").children) b.classList.toggle("on", +b.dataset.v === speed);
+}
+$("speeds").innerHTML = SPEEDS.map((v) => `<button data-v="${v}">${v}×</button>`).join("");
+$("speeds").onclick = (e) => e.target.dataset.v && setPlay(+e.target.dataset.v);
+$("pause").onclick = () => setPlay(play ? 0 : speed);
+function setView(live) {
+  liveView = live;
+  for (const b of $("views").children) b.classList.toggle("on", (b.dataset.v === "live") === live);
+  $("live").hidden = !live; $("walk").hidden = $("wnav").hidden = live;
+  walkGroup.visible = focusRing.visible = focusDot.visible = packet.visible = !live;
+  if (live) {
+    $("wlabel").hidden = true;
+    controls.target.set(0, 0, 0); camera.position.set(1.6, 1.4, 3.6);
+  } else if (steps.length) go(si);
+  controls.autoRotate = live;
+  overview.setOn(live);
+}
+$("views").onclick = (e) => e.target.dataset.v && setView(e.target.dataset.v === "live");
 
 const tmp = new THREE.Vector3();
 function nodePos(id, out) {
@@ -541,6 +569,8 @@ $("next").onclick = next;
 $("back").onclick = () => go(si - 1);
 addEventListener("keydown", (e) => {
   if (e.target.closest("input, select, textarea")) return;
+  if (e.key === "p" || e.key === "P") setPlay(play ? 0 : speed);
+  if (liveView) return;
   if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); next(); }
   if (e.key === "ArrowLeft") { e.preventDefault(); go(si - 1); }
 });
@@ -628,7 +658,7 @@ function buildRoute() {
   const label = s.focus.ll ? tx.why : s.focus.node != null ? (L.find((l) => l.node === s.focus.node) || {}).name : "";
   const own = s.focus.node != null && s.focus.node < N ? (L.find((l) => l.node === s.focus.node) || {}).owner : null;
   $("wlabel").textContent = label + (own ? ` · operator ${own}` : "");
-  $("wlabel").hidden = !label;
+  $("wlabel").hidden = !label || liveView;
 }
 
 const ease = (x) => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
@@ -741,7 +771,11 @@ addEventListener("resize", resize);
 function frame() {
   requestAnimationFrame(frame);
   if (con) {
-    const live = simTime(), t = steps.length && state ? walkFrame(1 / 60) : live;
+    const live = simTime(), t = !liveView && steps.length && state ? walkFrame(play / 60) : live;
+    if (liveView) {
+      $("wspeed").textContent = `time ×${Math.round(rate * play)}`;
+      $("wclock").textContent = new Date(live * 1000).toISOString().slice(11, 19) + " UTC";
+    }
     if (state) {
       const gm = state.gmst + (t - state.t) * 7.2921159e-5;
       earth.rotation.y = gm;
@@ -750,6 +784,7 @@ function frame() {
     earth.updateMatrixWorld();
     propagate(t);
     drawRoutes(1 / 60);
+    overview.frame(play / 60);
   }
   controls.update();
   renderer.render(scene, camera);
@@ -758,13 +793,15 @@ function frame() {
 (async () => {
   resize();
   await loadConstellation();
+  overview = createOverview({ scene, earth, nodePos, llToLocal, satCount: () => N, state: () => state, $ });
+  setView(true);
+  setPlay(1);
   const h = await (await fetch("api/prices?mode=" + mode)).json();
   history.push(...h.history);
   await loadPresets();
   setTarget(target.lat, target.lon);
   await poll();
   setInterval(poll, 1000);
-  controls.autoRotate = false;
   loadTx(true);
   setInterval(() => loadTx(false), 1000);
   frame();

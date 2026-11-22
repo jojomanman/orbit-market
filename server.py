@@ -60,6 +60,7 @@ class Sim:
         self.constellation = json.dumps(self.con.static_json()).encode()
         self.featured = None
         self.board_view = {}
+        self.flows_view = {}
         self.gs_names = [g["name"] for g in self.con.static_json()["ground_stations"]]
         self.imagers = np.nonzero(np.isin(self.con.shell, (2, 3)))[0]
         for _ in range(int(warmup_hours * 3600 / TICK_SIM_S)):
@@ -95,6 +96,8 @@ class Sim:
         # Built between ticks so the live board never shows a half-applied tick, once however many viewers poll.
         self.board_view = board.build(self.engines[DEFAULT_MODE], self.customers.orgs if self.customers else [], geo.t,
                                  TICK_SIM_S)
+        self.flows_view = board.flows(self.engines[DEFAULT_MODE], self.customers.orgs if self.customers else [], geo.t,
+                                      TICK_SIM_S, len(self.con.shell))
 
     def _snapshot(self, geo):
         modes = {k: {"label": e.mode.label, **e.metrics()} for k, e in self.engines.items()}
@@ -607,6 +610,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, sim.featured_view() if q.get("next") is None and sim.featured else sim.next_featured())
         if path == "/api/board":
             return self._json(200, sim.board_view)
+        if path == "/api/flows":
+            return self._json(200, sim.flows_view)
         if path == "/api/settlement":
             return self._json(200, {"t": sim.t, "mode": mode, **sim.engines[mode].ledger.view()})
         if path == "/api/scenario":
