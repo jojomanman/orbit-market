@@ -38,7 +38,21 @@ def weight_distance(net, pr, prev_load, gs_links):
     return d / C_KM_S + ph.HOP_PROC_S, gs_links[2] / C_KM_S + ph.HOP_PROC_S
 
 
-ROUTERS = {"price": weight_price, "distance": weight_distance}
+def weight_latency(net, pr, prev_load, gs_links):
+    """Light time + processing + M/M/1 queueing at last tick's load, i.e. the delay a packet sent now would see; a
+    link or station at >= 98 % load is usable only if nothing else exists. Congestion is priced in seconds, not
+    dollars, so the path stays physically short and only bends around hot links."""
+    isl_load, dl_load, gs_load = prev_load
+    up = net.isl_idx
+    cap = net.isl_cap_all[up]
+    w_isl = np.where(isl_load[up] >= 0.98 * cap, CONGESTED, ph.link_delay_s(net.isl_km_all[up], cap, isl_load[up]))
+    gsat, gst, gd = gs_links
+    w_gs = np.where((dl_load[gsat] >= 0.98 * net.dl_cap[gsat]) | (gs_load[gst] >= 0.98 * net.gs_cap[gst]),
+                    CONGESTED, gd / C_KM_S + ph.HOP_PROC_S)
+    return w_isl, w_gs
+
+
+ROUTERS = {"price": weight_price, "distance": weight_distance, "latency": weight_latency}
 
 
 class Network:
@@ -125,6 +139,18 @@ class Network:
                 path.append(int(pred[i, path[-1]]))
             out.append(path[::-1] if path[-1] == s else None)
         return out
+
+    def path_to_any(self, src, targets, extra):
+        """ISL path from src to whichever target minimises path weight + extra[target] (e.g. its ground leg), or None."""
+        dist, pred = dijkstra(self.isl_graph, indices=src, return_predecessors=True)
+        total = dist[targets] + extra
+        k = int(np.argmin(total))
+        if not np.isfinite(total[k]):
+            return None
+        path = [int(targets[k])]
+        while path[-1] != src:
+            path.append(int(pred[path[-1]]))
+        return path[::-1]
 
     def hops(self, path):
         """Yield ('isl', idx) / ('dl', sat) / ('gs', station) for every capacity a path uses."""

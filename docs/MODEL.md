@@ -35,7 +35,7 @@ One tick = 60 simulated seconds every 2 wall seconds (30x). Server warms up 1 si
 
 | | | |
 |---|---|---|
-| Topology | +Grid inside each shell: 2 intra-plane, 2 cross-plane. Cross-plane off above 70 deg latitude; no link across the counter-rotating seam of the polar shell; ray must clear 80 km altitude | Iridium/Starlink practice |
+| Topology | +Grid inside each shell: 2 intra-plane, 2 cross-plane. Cross-plane off above 70 deg latitude; no link across the counter-rotating seam of the polar shell; ray must clear 80 km altitude; max 5,400 km | Iridium/Starlink practice; Handley 2018, "Delay is Not an Option" (HotNets) +Grid; SpaceX laser range figure |
 | ISL rate | C = C_term min(1, (1500 km / d)^2); C_term 10/20/40 Gbps by class | Diffraction-limited optical: received power falls as 1/d^2 |
 | Downlink | 2.5 Gbps per satellite terminal, 4 x 2.5 Gbps per station | Ka-band gateway order of magnitude |
 | Latency | sum of hops: d/c + 0.1 ms processing + M/M/1 sojourn; quantile q: -ln(1-q)/(mu - lambda), mu = C/12 kbit | M/M/1 sojourn is exponential |
@@ -45,6 +45,7 @@ One tick = 60 simulated seconds every 2 wall seconds (30x). Server warms up 1 si
 
 - `price` (all market modes): edge weight per GB = link price + station price + $0.1 per GB-second of delay; links at >= 98 % load weigh 1000. One Dijkstra from a sink behind every station gives every satellite its cheapest route to the ground (LMP congestion term). Uses the previous tick's load, like link-state routing.
 - `distance` (fixed baseline): light time + processing only.
+- `latency` (walkthrough route, `Sim.plan_route`): light time + processing + M/M/1 queueing at the current load, saturated links 1000 s, each half planned at the time the data moves. Up: from the station nearest the customer, through whichever satellite it sees at >= 25 deg that gives the shortest mesh path to the compute satellite. Down at compute end: to the station with the least delay including fibre (c/1.47) on to the customer. Stretch on the dense shells 1.1-1.4x the straight-line light time (short +Grid staircases up to ~2x); `tests/test_sanity.py` checks range, Earth clearance and stretch.
 - Open questions for the team: multipath splitting; inter-shell links; predicting the graph a few minutes ahead (it is deterministic); store-and-forward when no route exists.
 
 ## Pricing modes (`sim/market.py`, `MODES`; sources in docs/MECHANISMS.md)

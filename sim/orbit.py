@@ -37,6 +37,7 @@ GROUND_STATIONS = [
     ("Ireland", 53.35, -6.26), ("Stockholm", 59.33, 18.07), ("Frankfurt", 50.11, 8.68), ("Cape Town", -33.92, 18.42),
     ("Mauritius", -20.16, 57.50), ("Guam", 13.44, 144.79), ("Azores", 37.74, -25.67), ("Bangalore", 12.97, 77.59),
 ]
+ISL_MAX_KM = 5400.0           # SpaceX laser ISL range figure
 GS_MIN_ELEVATION_DEG = 25.0   # typical Ka-band gateway mask
 
 REGIONS = ["N America", "S America", "Europe", "Africa", "Middle East", "S Asia", "E Asia", "N Asia", "Oceania",
@@ -184,9 +185,9 @@ class Geometry:
         self.isl_km = np.linalg.norm(d, axis=1)
         mid_lat = np.abs(self.lat[con.isl_u])
         # Cross-plane optical terminals lose lock at high latitude (relative azimuth rate too high, Iridium/Starlink
-        # practice ~70 deg). The ray must also clear 80 km of atmosphere.
+        # practice ~70 deg). The ray must also clear 80 km of atmosphere and stay within terminal range.
         grazing = self._ray_min_alt(r[con.isl_u], r[con.isl_v])
-        self.isl_up = (~con.isl_cross | (mid_lat < 70)) & (grazing > RE + 80)
+        self.isl_up = (~con.isl_cross | (mid_lat < 70)) & (grazing > RE + 80) & (self.isl_km < ISL_MAX_KM)
         # Ground contacts: elevation of each sat over each ground station.
         vis = []
         for g in range(len(con.gs_ecef)):

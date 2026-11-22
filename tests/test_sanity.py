@@ -177,6 +177,34 @@ class FeaturedPlan(unittest.TestCase):
             chain = sum(i["usd"] for l in legs for i in l["items"]) + sum(i["usd"] for i in v["plan"]["compute"])
             self.assertAlmostEqual(chain + v["settlement"]["fee_usd"], v["price_usd"], delta=0.01 + 0.002 * v["price_usd"])
 
+    def test_planned_routes_are_physical_and_near_shortest(self):
+        """Every hop within ISL range and clear of the Earth (+80 km); on the dense shells each half of the route is
+        within 1.5x of the straight-line light time between its ends plus 10 ms, the +Grid staircase on a short route
+        (3 cross-plane hops of ~1,400 km then in-plane: 2.1x on 12 ms). The 8-plane polar shell has no seam links."""
+        from server import DEFAULT_MODE, Sim
+        from sim.orbit import C_KM_S, ISL_MAX_KM
+        sim = Sim(0.2, "customers")
+        sim.step()
+        e, con, n = sim.engines[DEFAULT_MODE], sim.con, sim.con.n_sats
+        jobs = [t["job"] for t in list(e.tasks) if t["job"].get("location")][:8]
+        self.assertTrue(jobs)
+        for j in jobs:
+            L, at = (lambda p: (p["legs"], p["compute_at"]))(sim.plan_route(e, j))
+            for seg in (L[:at + 1], L[at:]):
+                t = seg[-1]["t"]
+                geo = Geometry(con, t)
+                pos = lambda x: geo.ecef[x] if x < n else con.gs_ecef[x - n]
+                for a, b in zip(seg, seg[1:]):
+                    if a["node"] < n and b["node"] < n:
+                        p, q = pos(a["node"]), pos(b["node"])
+                        d = q - p
+                        k = np.clip(-(p @ d) / (d @ d), 0, 1)
+                        self.assertGreater(np.linalg.norm(p + k * d), RE + 80)
+                        self.assertLessEqual(np.linalg.norm(d), ISL_MAX_KM)
+                if len(seg) > 1 and con.shell[j["placed"]["sat"]] != 3:
+                    lb = np.linalg.norm(pos(seg[0]["node"]) - pos(seg[-1]["node"])) / C_KM_S * 1000
+                    self.assertLess(sum(l["ms"] for l in seg[1:]), 1.5 * lb + 10, (j["id"], seg[0]["name"], seg[-1]["name"]))
+
     def test_no_jobs_means_no_featured(self):
         from server import Sim
         sim = Sim(0, "customers")

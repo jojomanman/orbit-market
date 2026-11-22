@@ -27,7 +27,7 @@ from sim.market import (DEFAULT_MODE, IMAGER_KM, MODES, REF, RES, input_gb, upli
 from sim import board, physics as ph, settlement
 from sim.customers import Customers
 from sim.routing import ROUTERS, Network
-from sim.orbit import C_KM_S, REGIONS, Constellation, Geometry, gmst, passes, region_of, sun_vector
+from sim.orbit import C_KM_S, RE, REGIONS, Constellation, Geometry, gmst, passes, region_of, sun_vector
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 STATIC = os.path.join(ROOT, "static")
@@ -35,6 +35,7 @@ TICK_SIM_S = 60
 TICK_WALL_S = 2.0
 HISTORY = 24 * 60   # ticks of price history kept (one simulated day)
 MAX_API_JOBS = 5000
+FIBRE_KM_S = C_KM_S / 1.47  # light in glass: station to customer goes terrestrial
 URGENCIES = [60, 900, 3600, 6 * 3600, 86400]
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css",
          ".json": "application/json", ".svg": "image/svg+xml", ".jpg": "image/jpeg"}
@@ -191,34 +192,39 @@ class Sim:
     def plan_route(self, e, j):
         """Contract model: the relay route is fixed when the job is matched, not discovered hop by hop.
 
-        Uplink from the ground station nearest the customer to the satellite overhead, mesh hops to the compute
-        satellite, then the downlink path for where the satellites will be when compute ends. Each leg carries its length and light time,
-        so the walkthrough can show every hop."""
+        Every leg minimises delay (light time, per-hop processing, queueing at current loads) at the time the data
+        actually moves: the input goes up now at the station nearest the customer, through whichever satellite that
+        station sees gives the shortest mesh path to the compute satellite; the output comes down at compute end,
+        from the orbit positions then, to the station with the least delay including fibre from it to the customer."""
         n, sat = self.con.n_sats, int(j["placed"]["sat"])
         geo = Geometry(self.con, self.t)
-        nodes = []
+        weight = ROUTERS["latency"]
+        nodes = [sat]
         loc = j.get("location")
-        if loc and len(geo.gs_links):
+        backhaul = np.zeros(len(self.con.gs_lat))
+        if loc:
             la, lo = math.radians(loc[0]), math.radians(loc[1])
             p = np.array([math.cos(la) * math.cos(lo), math.cos(la) * math.sin(lo), math.sin(la)])
-            seen = set(geo.gs_links[:, 1].astype(int).tolist())
+            backhaul = np.arccos(np.clip(self.con.gs_ecef @ p / RE, -1, 1)) * RE / FIBRE_KM_S
+            seen = set(geo.gs_links[:, 1].astype(int).tolist()) if len(geo.gs_links) else set()
             g = j.get("uplink_gs")
             if g not in seen:
-                g = next((int(x) for x in np.argsort(-(self.con.gs_ecef @ p)) if int(x) in seen), None)
-            vis = geo.gs_links[geo.gs_links[:, 1] == g]
-            same = vis[self.con.shell[vis[:, 0].astype(int)] == self.con.shell[sat]]   # the mesh has no inter-shell links
-            vis = same if len(same) else vis
+                g = next((int(x) for x in np.argsort(backhaul) if int(x) in seen), None)
+            vis = geo.gs_links[geo.gs_links[:, 1] == g] if g is not None else []
             if len(vis):
-                first = int(vis[np.argmin(vis[:, 2]), 0])
-                up = e.net.paths_between([(first, sat)])[0] if first != sat else [sat]
-                if up:
-                    nodes = [n + g] + up
-        nodes = nodes or [sat]
+                net_up = Network(self.con, geo, e.fleet, e.prev_load, weight, e.pr)
+                mesh = net_up.path_to_any(sat, vis[:, 0].astype(int), vis[:, 2] / C_KM_S + ph.HOP_PROC_S)
+                if mesh:
+                    nodes = [n + g] + mesh[::-1]
         at = len(nodes) - 1
-        # The downlink is booked now for the orbit positions when compute finishes, on today's link prices.
+        # The downlink is booked now for the orbit positions when compute finishes, on today's loads and prices.
         t_out = self.t + j["duration"]
         geo_out = Geometry(self.con, t_out)
-        net_out = Network(self.con, geo_out, e.fleet, e.prev_load, ROUTERS[e.mode.router], e.pr)
+
+        def to_customer(net, pr, load, gl):
+            w_isl, w_gs = weight(net, pr, load, gl)
+            return w_isl, w_gs + backhaul[gl[1]]
+        net_out = Network(self.con, geo_out, e.fleet, e.prev_load, to_customer, e.pr)
         down = net_out.path_to_ground(sat)
         nodes += down[1:] if down else []
         pos = lambda x, i: (geo if i <= at else geo_out).ecef[x] if x < n else self.con.gs_ecef[x - n]
