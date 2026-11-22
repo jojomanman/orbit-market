@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jojomanman/orbit-market/spec/provider-offer.schema.json",
+  "title": "Orbit compute provider offer",
+  "description": "What a satellite owner publishes so the market can ask its satellites for quotes. One per owner; capacities change with sun, eclipse, battery and heat, so they are reported live.",
+  "type": "object",
+  "required": ["owner", "satellites", "pricing"],
+  "properties": {
+    "owner": {"type": "string"},
+    "satellites": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "orbit", "capacity"],
+        "properties": {
+          "id": {"type": "string"},
+          "orbit": {"type": "object", "description": "mean elements or a TLE",
+                    "properties": {"tle": {"type": "array", "items": {"type": "string"}, "minItems": 2, "maxItems": 2},
+                                   "alt_km": {"type": "number"}, "inc_deg": {"type": "number"},
+                                   "raan_deg": {"type": "number"}, "arg_lat_deg": {"type": "number"},
+                                   "epoch_unix": {"type": "number"}}},
+          "capacity": {"type": "object", "properties": {
+            "cpu": {"type": "number"}, "memory_gb": {"type": "number"}, "storage_gb": {"type": "number"},
+            "isl_gbps": {"type": "number"}, "downlink_gbps": {"type": "number"},
+            "array_w": {"type": "number"}, "battery_wh": {"type": "number"}}},
+          "sensors": {"type": "array", "items": {"enum": ["optical", "sar", "sounder", "ais", "rf"]}}
+        }
+      }
+    },
+    "pricing": {
+      "type": "object",
+      "description": "the load curve each satellite quotes from: p(u) = L for u <= c, (L/e)(U e/L)^u above, c = 1/(1 + ln(U/L))",
+      "required": ["floor", "ceiling"],
+      "properties": {
+        "floor": {"type": "object", "description": "L per resource, the owner's cost floor",
+                  "properties": {"cpu_unit_h": {"type": "number"}, "memory_gb_h": {"type": "number"},
+                                 "storage_tb_h": {"type": "number"}, "isl_gb": {"type": "number"},
+                                 "downlink_gb": {"type": "number"}}},
+        "ceiling": {"type": "number", "description": "U as a multiple of the floor"},
+        "energy_usd_per_kwh": {"type": "number", "description": "value of stored energy, raises eclipse quotes"}
+      }
+    },
+    "ground_stations": {"type": "array", "items": {"type": "object", "properties": {
+      "name": {"type": "string"}, "lat": {"type": "number"}, "lon": {"type": "number"},
+      "antennas": {"type": "integer"}, "gbps_per_antenna": {"type": "number"}}}}
+  }
+}

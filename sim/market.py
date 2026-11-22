@@ -276,7 +276,7 @@ class ReverseAuction(Posted):
     the second-lowest quote (Vickrey reverse auction: quoting true cost is each owner's best strategy), capped by
     the bid; a lone quote is paid as quoted. Rejected if no quote is within the bid."""
 
-    name, label = "rfq", "RFQ auction"
+    name, label = "rfq", "RFQ"
     vickrey = True
 
     def prices(self, eng, geo, reserve):
@@ -302,7 +302,7 @@ class BatchAuction(Posted):
     density of the first job it displaced times sqrt(its own size), never below the owners' floor. Placement uses
     the posted curve only as a signal for which satellite is least loaded."""
 
-    name, label = "batch", "Batch auction"
+    name, label = "batch", "Batch"
 
     def order(self, jobs):
         return sorted(jobs, key=lambda j: -j["value"] / math.sqrt(bundle_size(j)))
@@ -343,7 +343,7 @@ class Tatonnement(Posted):
 class Fixed(Posted):
     """Baseline: anchor prices everywhere, first come first served, nearest satellite, shortest-delay routes."""
 
-    name, label, router = "fixed", "Fixed + FIFO", "distance"
+    name, label, router = "fixed", "Fixed", "distance"
 
     def prices(self, eng, geo, reserve):
         n, e, g = eng.con.n_sats, len(eng.con.isl_u), len(eng.con.gs_lat)
@@ -372,6 +372,7 @@ class Engine:
         self.unmet = self._zero_unmet()
         self.done = deque()       # (t, value, on_time, kind, why it failed)
         self.lat_ms = deque()     # (t, ms) of admitted latency-bound jobs
+        self.delivery_s = deque() # (t, s from arrival to delivery) of served jobs
         self.paid = deque()       # (t, $)
         self.net = None
         self.pr = None
@@ -433,7 +434,7 @@ class Engine:
         self.prev_load = self.net.loads()
         self.mode.update(self)
         cutoff = now - 3600
-        for q in (self.done, self.lat_ms, self.paid, self.wx_stats):
+        for q in (self.done, self.lat_ms, self.delivery_s, self.paid, self.wx_stats):
             while q and q[0][0] < cutoff:
                 q.popleft()
 
@@ -464,6 +465,8 @@ class Engine:
         # Why a job failed: priced out (no quote within its bid), no capacity in reach, or placed but late.
         why = None if on_time else "late" if "placed" in job else job.get("why", "capacity")
         job["result"] = {"t": now, "on_time": on_time, "why": why}
+        if on_time:
+            self.delivery_s.append((now, now - job["arrival"]))
         self.done.append((now, job["value"], on_time, job["kind"], why))
         if job.get("customer"):
             self.cust_done.append((job["customer"], on_time))
@@ -720,6 +723,7 @@ class Engine:
         n = len(d)
         on = sum(1 for x in d if x[2])
         lat = sorted(x[1] for x in self.lat_ms)
+        dly = sorted(x[1] for x in self.delivery_s)
         rs = self.resource_state()
         share = lambda why: round(sum(1 for x in d if x[4] == why) / n, 3) if n else None
         return {"welfare_per_h": round(sum(x[1] for x in d if x[2])),
@@ -728,6 +732,7 @@ class Engine:
                 "priced_out": share("price"),
                 "missed": round(sum(1 for x in d if x[4] in ("capacity", "late")) / n, 3) if n else None,
                 "p99_latency_ms": round(lat[int(0.99 * (len(lat) - 1))], 1) if lat else None,
+                "p99_delivery_s": round(dly[int(0.99 * (len(dly) - 1))]) if dly else None,
                 "binding": max(rs, key=lambda r: (rs[r]["hot"], rs[r]["demand"])),
                 "jobs_per_h": n, "waiting": len(self.pending), "running": len(self.tasks), "flows": len(self.flows)}
 

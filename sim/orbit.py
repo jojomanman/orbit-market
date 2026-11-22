@@ -119,8 +119,11 @@ class Constellation:
                     i = base + p * per + s
                     isl.append((i, base + p * per + (s + 1) % per, 0))
                     # Polar shells counter-rotate across the seam; no cross-plane link there.
-                    if p + 1 < planes or inc < 80:
-                        isl.append((i, base + ((p + 1) % planes) * per + s, 1))
+                    # Across the seam (last plane to plane 0) Walker phasing has shifted the partner by F slots.
+                    if p + 1 < planes:
+                        isl.append((i, base + (p + 1) * per + s, 1))
+                    elif inc < 80:
+                        isl.append((i, base + (s + f) % per, 1))
             base += planes * per
         for k, v in cols.items():
             setattr(self, k, np.array(v))

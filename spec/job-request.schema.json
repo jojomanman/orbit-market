@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jojomanman/orbit-market/spec/job-request.schema.json",
+  "title": "Orbit compute job request",
+  "description": "What a buyer asks for. Any provider that can meet location, latency and deadline may quote.",
+  "type": "object",
+  "required": ["deadline_s", "max_price_usd"],
+  "properties": {
+    "cpu": {"type": "number", "minimum": 0, "maximum": 64, "description": "compute units (vCPU + accelerator share)"},
+    "memory_gb": {"type": "number", "minimum": 0, "maximum": 256},
+    "storage_gb": {"type": "number", "minimum": 0, "maximum": 8000},
+    "duration_s": {"type": "number", "minimum": 0, "maximum": 86400, "description": "run time once started"},
+    "location": {"$ref": "#/$defs/point", "description": "where the data is or the user stands; omitted = anywhere"},
+    "network": {
+      "type": "object",
+      "required": ["gb"],
+      "properties": {
+        "gb": {"type": "number", "minimum": 0.001, "description": "bits to move, in GB"},
+        "to": {"oneOf": [{"const": "ground"}, {"$ref": "#/$defs/point"}], "default": "ground"},
+        "latency_ms": {"type": "object", "minProperties": 1, "maxProperties": 1,
+                       "properties": {"max": {"type": "number"}, "p50": {"type": "number"}}}
+      }
+    },
+    "rate": {"type": "object", "required": ["tokens_per_s", "p95_ms"], "description": "rate reservation held for duration_s",
+             "properties": {"tokens_per_s": {"type": "number", "minimum": 1}, "p95_ms": {"type": "number", "minimum": 1}}},
+    "image": {"$ref": "#/$defs/point", "description": "an image of this point, analysed onboard, product delivered"},
+    "deadline_s": {"type": "number", "minimum": 30, "maximum": 86400, "description": "deliver within, from now"},
+    "max_price_usd": {"type": "number", "minimum": 0, "description": "the bid: highest total the buyer pays"},
+    "priority": {"const": "reserve", "description": "emergency subscription: served ahead of spot, never above price_cap_usd"},
+    "price_cap_usd": {"type": "number", "minimum": 0}
+  },
+  "$defs": {
+    "point": {"type": "object", "required": ["lat", "lon"],
+              "properties": {"lat": {"type": "number", "minimum": -90, "maximum": 90},
+                             "lon": {"type": "number", "minimum": -180, "maximum": 180}}}
+  }
+}

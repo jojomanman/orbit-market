@@ -77,7 +77,8 @@ class Customers:
         orgs, problems = [], []
         for f in files:
             try:
-                data = json.load(open(f))
+                with open(f) as fh:
+                    data = json.load(fh)
                 if not isinstance(data, list):
                     raise ValueError("top level is not a list")
             except (OSError, ValueError) as e:

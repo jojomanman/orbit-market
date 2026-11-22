@@ -261,10 +261,10 @@ function renderPanel(s) {
 
   const ms = Object.entries(s.modes);
   const row = (label, f) => `<tr><td>${label}</td>${ms.map(([k, m]) => `<td class="${k === mode ? "" : "n"}">${f(m)}</td>`).join("")}</tr>`;
-  $("compare").innerHTML = `<tr><th></th>${ms.map(([k, m]) => `<th>${m.label.split(" ")[0]}</th>`).join("")}</tr>`
+  $("compare").innerHTML = `<tr><th></th>${ms.map(([k, m]) => `<th>${m.label}</th>`).join("")}</tr>`
     + row("Welfare /h", (m) => usd(m.welfare_per_h)) + row("Served", (m) => pct(m.served))
     + row("Priced out", (m) => pct(m.priced_out)) + row("Missed", (m) => pct(m.missed))
-    + row("p99 ms", (m) => m.p99_latency_ms ?? "")
+    + row("p99 delivery", (m) => m.p99_delivery_s == null ? "" : m.p99_delivery_s >= 3600 ? (m.p99_delivery_s / 3600).toFixed(1) + " h" : Math.round(m.p99_delivery_s / 60) + " min")
     + row("Binding", (m) => RES_LABEL[m.binding]);
 
   renderScenario(s);
