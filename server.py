@@ -14,6 +14,7 @@ import copy
 import json
 import math
 import os
+import random
 import threading
 import time
 from collections import deque
@@ -56,6 +57,8 @@ class Sim:
         self.geo = None
         self.weather = "off"
         self.constellation = json.dumps(self.con.static_json()).encode()
+        self.featured = None
+        self.gs_names = [g["name"] for g in self.con.static_json()["ground_stations"]]
         self.imagers = np.nonzero(np.isin(self.con.shell, (2, 3)))[0]
         for _ in range(int(warmup_hours * 3600 / TICK_SIM_S)):
             self.step()
@@ -155,6 +158,46 @@ class Sim:
             self.injected.append(job)
             self.api_jobs[job["id"]] = job
         return job
+
+    def next_featured(self):
+        """Follow one real request of the default market, just matched (most arrivals match within their tick):
+        prefer a customer job that computes and then downlinks, so every step of its life shows."""
+        e = self.engines[DEFAULT_MODE]
+        fresh = [t["job"] for t in list(e.tasks) if t["job"].get("customer") and t["job"]["placed"]["t"] >= self.t - 2 * TICK_SIM_S]
+        full = [j for j in fresh if j["out_gb"] > 0 and j.get("location")]
+        pool = full or fresh or [t["job"] for t in list(e.tasks)]
+        self.featured = random.choice(pool) if pool else None
+        return self.featured_view()
+
+    def featured_view(self):
+        """The featured job as a transaction: request, quotes, route with owners, timings, settlement."""
+        j = self.featured
+        if j is None:
+            return {"job": None}
+        org = next((o for o in self.customers.orgs if o["id"] == j.get("customer")), None) if self.customers else None
+        p = j.get("placed") or {}
+        path = p.get("path") or []
+        n = self.con.n_sats
+        hops = [{"sat": int(x), "owner": str(self.con.owner[x])} for x in path if x < n]
+        station = next((self.gs_names[x - n] for x in path if x >= n), None)
+        status = ("delivered" if j["result"]["on_time"] else "failed") if "result" in j else \
+            "downlink" if "down_t" in j else "compute" if "placed" in j else "pending"
+        out = {"id": f"0x{abs(hash((j['id'], j['arrival']))) & 0xffffffffffff:012x}", "status": status,
+               "why": org["name"] if org else "API", "what": org["what"][:120] if org else "",
+               "type": j.get("ctype", j["kind"]).replace("_", " "),
+               "region": REGIONS[int(region_of_point(*j["location"]))] if j.get("location") else None,
+               "spec": {"cpu": j["units"], "mem_gb": round(j["mem"], 1), "storage_gb": round(j["storage_gb"], 1),
+                        "run_s": round(j["duration"]), "out_gb": round(j["out_gb"], 2)},
+               "offer": {"max_usd": round(j["value"], 2), "deadline_s": round(j["deadline"] - j["arrival"])},
+               "t": {"now": self.t, "arrival": j["arrival"], "matched": p.get("t"), "computed": j.get("computed_t"),
+                     "down": j.get("down_t"), "done": j["result"]["t"] if "result" in j else None},
+               "speed": TICK_SIM_S / TICK_WALL_S,
+               "quotes": [{"sat": s, "owner": str(self.con.owner[s]), "usd": u} for s, u in j.get("quotes", [])],
+               "sat": p.get("sat"), "price_usd": p.get("price"), "path": [int(x) for x in path],
+               "hops": hops, "station": station, "why_failed": j["result"]["why"] if "result" in j else None}
+        if "settle" in j:
+            out["settlement"] = settlement.job_view(j["settle"])
+        return out
 
     def customer_jobs(self, cid, mode):
         """One customer's live and recently finished jobs in one engine: where, which satellite, which route."""
@@ -465,6 +508,8 @@ class Handler(BaseHTTPRequestHandler):
                 "history": sim.history[mode]})
         if path == "/api/sats":
             return self._json(200, sim.sats_summary())
+        if path == "/api/featured":
+            return self._json(200, sim.featured_view() if q.get("next") is None and sim.featured else sim.next_featured())
         if path == "/api/settlement":
             return self._json(200, {"t": sim.t, "mode": mode, **sim.engines[mode].ledger.view()})
         if path == "/api/scenario":

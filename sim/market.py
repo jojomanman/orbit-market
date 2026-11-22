@@ -457,6 +457,7 @@ class Engine:
                 continue
             s, job = t["sat"], t["job"]
             self.ledger.release(job, "compute")
+            job["computed_t"] = now
             self.units_used[s] -= job["units"]
             self.mem_used[s] -= job["mem"]
             if job["out_gb"] > 0.01:
@@ -618,6 +619,7 @@ class Engine:
                     self._finish(job, now, ok=False)
                 continue
             job["placed"] = {"sat": s, "price": round(price, 4), "t": now}
+            job["quotes"] = [[int(fit[k]), round(float(cost[k]), 4)] for k in np.argsort(cost)[:4]]
             if batch:
                 job["crit"] = 0.0
                 winners.append((job, s))
@@ -707,10 +709,11 @@ class Engine:
                 got = max(0.0, min(want, self.net.residual(path)))
                 if got > 0:
                     self.net.take(path, got)
+                    job.setdefault("down_t", now)
                     self.ledger.carry(job, path, self.net, got * dt / 8, self.pr)
                 f["path"] = path
                 f["load"] = self.net.bottleneck_util(path)
-                if "placed" in job and job["kind"] in ("image", "api"):
+                if "placed" in job:
                     job["placed"]["path"] = path
                 if got < need:
                     self.net.blame(path, need - got, self.unmet)

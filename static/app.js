@@ -450,6 +450,58 @@ function track(j) {
 }
 let highlight = null;
 
+// ---- featured request: one real sim job followed from request to delivery, as a transaction ---------------------
+let tx = null, txDoneAt = null;
+const mmss = (s) => s == null ? "" : `+${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+async function loadTx(next) {
+  tx = await (await fetch("api/featured" + (next ? "?next=1" : ""), { cache: "no-store" })).json();
+  if (!tx.id) return;
+  if (tx.path.length) highlight = { sat: tx.sat, path: tx.path };
+  else if (tx.sat != null) highlight = { sat: tx.sat, path: [tx.sat] };
+  if (tx.t.done && !txDoneAt) txDoneAt = performance.now();
+  if (txDoneAt && performance.now() - txDoneAt > 20000) { txDoneAt = null; return loadTx(true); }
+  renderTx();
+}
+$("next").onclick = () => { txDoneAt = null; loadTx(true); };
+
+function renderTx() {
+  const t = tx.t, at = (x) => x == null ? null : Math.max(0, x - t.arrival), st = tx.settlement;
+  const q = tx.quotes.map((x, i) => `${i ? "" : "&#10003; "}sat ${x.sat} ${x.owner} ${usd(x.usd)}`).join("<br>");
+  const fw = st ? Object.entries(st.forwarders) : [];
+  const paid = st ? [`${st.entry} ${usd(st.legs.compute.usd + st.legs.delivery.usd - fw.reduce((a, [, f]) => a + f.usd, 0))}`]
+    .concat(fw.map(([k, f]) => `${k === "GS" ? "stations" : k} ${usd(f.usd)}${f.relation === "peer" ? " peer" : ""}`), [`fee ${usd(st.fee_usd)}`]) : [];
+  const relay = tx.hops.map((h) => `${h.sat} ${h.owner}`).join(" &rarr; ");
+  const steps = [
+    ["Why", `${tx.why}, ${tx.type}${tx.region ? ", " + tx.region : ""}<small>${tx.what}</small>`, 0],
+    ["Request", `${tx.spec.cpu} CPU, ${tx.spec.mem_gb} GB, ${tx.spec.run_s} s, ${tx.spec.out_gb} GB out<small>offer &le; ${usd(tx.offer.max_usd)}, deadline ${Math.round(tx.offer.deadline_s / 60)} min</small>`, 0],
+    ["Quotes", q ? `${q}<small>paid ${usd(tx.price_usd)}${mode === "rfq" ? ", 2nd lowest" : ""}</small>` : "", at(t.matched)],
+    ["Uplink", tx.sat != null ? `direct to sat ${tx.sat}, owner ${st ? st.entry : ""}` : "", at(t.matched)],
+    ["Compute", t.computed ? `sat ${tx.sat}, ${Math.round((t.computed - t.matched) / 60)} min` : tx.sat != null ? `sat ${tx.sat}, running` : "", at(t.computed)],
+    ["Relay", t.down ? relay + (fw.length ? `<small>${fw.filter(([k]) => k !== "GS").map(([k, f]) => `${k}: ${f.relation}`).join(", ")}</small>` : "") : "", at(t.down)],
+    ["Downlink", t.down ? `${tx.station || ""}, ${tx.spec.out_gb} GB` : "", at(t.down)],
+    [tx.status === "failed" ? "Failed" : "Delivered", t.done ? (tx.status === "failed" ? tx.why_failed
+      : `${Math.round((t.done - t.arrival) / 60)} of ${Math.round(tx.offer.deadline_s / 60)} min, ${usd(tx.price_usd)}<small>${paid.join(" &middot; ")}</small>`) : "", at(t.done)],
+  ];
+  const cur = steps.findIndex(([, v]) => !v);
+  $("tx").innerHTML = `<div class="txid"><code>${tx.id}</code><span class="pill ${tx.status}">${tx.status}</span></div><ol class="steps">`
+    + steps.map(([k, v, tt], i) => `<li class="${v ? "on" : ""} ${i === cur ? "now" : ""}"><b>${k}</b><span>${v || "&nbsp;"}</span><i>${v && tt != null ? mmss(tt) : ""}</i></li>`).join("")
+    + `</ol>`;
+  $("speed").textContent = `sim ${tx.speed}x`;
+}
+
+// The camera drifts toward the featured satellite unless someone is steering it.
+let steeredAt = -1e9;
+controls.addEventListener("start", () => { steeredAt = performance.now(); });
+const camDir = new THREE.Vector3();
+function follow() {
+  if (!highlight || performance.now() - steeredAt < 10000) return;
+  const id = (highlight.path || []).filter((x) => x < N).pop();
+  if (id == null) return;
+  nodePos(id, camDir).normalize();
+  const r = camera.position.length();
+  camera.position.normalize().lerp(camDir, 0.01).normalize().multiplyScalar(r);
+}
+
 const sparks = {};
 function drawHistory(s) {
   const box = $("history");
@@ -500,6 +552,7 @@ function frame() {
     earth.updateMatrixWorld();
     propagate(t);
     drawRoutes(1 / 60);
+    follow();
   }
   controls.update();
   renderer.render(scene, camera);
@@ -514,5 +567,8 @@ function frame() {
   setTarget(target.lat, target.lon);
   await poll();
   setInterval(poll, 1000);
+  controls.autoRotate = false;
+  loadTx(true);
+  setInterval(() => loadTx(false), 1000);
   frame();
 })();

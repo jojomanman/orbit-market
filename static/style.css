@@ -53,6 +53,20 @@ td button { background: none; border: 1px solid var(--line); color: var(--text);
   padding: 1px 8px; cursor: pointer; }
 td button:hover { border-color: var(--dim); }
 #job { font-size: 12px; }
+details > summary { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; cursor: pointer; }
+details[open] { display: grid; gap: calc(3 * var(--u)); }
+.txid { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--u); }
+.txid code { color: var(--dim); font-size: 12px; }
+.pill { font-size: 11px; padding: 1px 8px; border: 1px solid var(--line); color: var(--dim); }
+.pill.delivered { color: var(--accent); border-color: var(--accent); }
+.pill.failed { color: var(--hot); border-color: var(--hot); }
+.steps { list-style: none; padding: 0; display: grid; gap: 6px; }
+.steps li { display: grid; grid-template-columns: 72px 1fr 48px; gap: var(--u); color: var(--dim); }
+.steps li.on { color: var(--text); }
+.steps li.now b { color: var(--accent); }
+.steps b { font-weight: 400; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding-top: 1px; }
+.steps i { font-style: normal; text-align: right; font-size: 11px; color: var(--dim); }
+.steps small { display: block; color: var(--dim); font-size: 11px; }
 select, input { background: var(--bg); color: var(--text); border: 1px solid var(--line); font: inherit; font-size: 12px; }
 select { width: 100%; padding: 5px 4px; }
 #desc { font-size: 12px; margin: var(--u) 0; min-height: 1.4em; }
