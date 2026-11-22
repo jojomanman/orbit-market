@@ -30,8 +30,10 @@ nav { display: flex; gap: calc(2 * var(--u)); }
 .col > header b { font-size: 18px; font-weight: 600; text-align: right; }
 .col[data-s=delivered] > header b { color: var(--c); }
 .col[data-s=rejected] > header b { color: var(--r); }
-/* Clip only the bottom overflow: a card sliding over from another column must stay visible on its way. */
-.list { display: flex; flex-direction: column; gap: 4px; padding: 4px; min-height: 0; clip-path: inset(0 -100vw); }
+.list { display: flex; flex-direction: column; gap: 4px; padding: 4px; min-height: 0; overflow: hidden; }
+/* Cards crossing columns fly as clones on this layer above the board, so they never draw over other cards' text. */
+#fx { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+#fx .card { position: fixed; margin: 0; }
 .more { color: var(--dim); font-size: 11px; text-align: right; padding: 0 var(--u) 4px; min-height: 19px; }
 .card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--u); padding: 5px 7px;
   background: var(--bg); border: 1px solid var(--line); border-left: 2px solid var(--a); font-size: 12px;
@@ -62,14 +64,15 @@ nav { display: flex; gap: calc(2 * var(--u)); }
   </div>
 </header>
 <div id="board"></div>
+<div id="fx"></div>
 <script>
 // Columns in the engine's order (sim/board.py); a card always travels left to right through them.
 const STAGES = [["incoming", "Incoming"], ["quoted", "Quoted"], ["matched", "Matched"], ["uplink", "Uplink"],
   ["compute", "Compute"], ["relay", "Relay"], ["downlink", "Downlink"], ["delivered", "Delivered"],
   ["rejected", "Rejected"]];
 const ORDER = Object.fromEntries(STAGES.map(([s], i) => [s, i]));
-const POLL_MS = 400, HOP_MS = 260, LINGER_MS = 3500;
-const board = document.getElementById("board");
+const POLL_MS = 400, HOP_MS = 260, LINGER_MS = 3500, EASE = "cubic-bezier(.2,.7,.2,1)";
+const board = document.getElementById("board"), fx = document.getElementById("fx");
 const cols = {};
 for (const [s, name] of STAGES) {
   const el = document.createElement("section");
@@ -94,7 +97,9 @@ function fill(el, c) {
   el.querySelector(".k").textContent = c.k;
 }
 
-// FLIP: measure every card, change the DOM, then slide each card from where it was to where it is now.
+// FLIP: measure every card, change the DOM, then slide each card from where it was to where it is now. Within a
+// column that is the card itself shifting; across columns a clone flies on the #fx layer while the card waits,
+// hidden, in its new slot (a transformed card inside a column would be clipped or drawn over its neighbours).
 function flip(change) {
   const before = new Map();
   for (const [id, x] of cards) before.set(id, x.el.getBoundingClientRect());
@@ -103,10 +108,15 @@ function flip(change) {
     const a = before.get(id);
     if (!a) continue;
     const b = x.el.getBoundingClientRect();
-    const dx = a.left - b.left, dy = a.top - b.top;
+    const dx = b.left - a.left, dy = b.top - a.top;
     if (!dx && !dy) continue;
-    x.el.animate([{transform: `translate(${dx}px, ${dy}px)`}, {transform: "none"}],
-      {duration: dx ? 420 : 240, easing: "cubic-bezier(.2,.7,.2,1)"});
+    if (!dx) { x.el.animate([{transform: `translateY(${-dy}px)`}, {transform: "none"}], {duration: 240, easing: EASE}); continue; }
+    const ghost = x.el.cloneNode(true);
+    ghost.style.left = a.left + "px"; ghost.style.top = a.top + "px";
+    fx.append(ghost);
+    x.el.style.visibility = "hidden";
+    ghost.animate([{transform: "none", width: a.width + "px"}, {transform: `translate(${dx}px, ${dy}px)`, width: b.width + "px"}],
+      {duration: 250, easing: EASE}).finished.finally(() => { ghost.remove(); x.el.style.visibility = ""; });
   }
 }
 
