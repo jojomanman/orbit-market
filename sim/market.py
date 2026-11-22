@@ -317,7 +317,7 @@ class Tatonnement(Posted):
     D = served + unmet demand on that good. Prices are state, not a function of load, so they chase moving
     satellites with a lag; that lag is the point of the comparison."""
 
-    name, label = "tatonnement", "Tatonnement"
+    name, label = "tatonnement", "Adjust"
     GAMMA = 0.15
 
     def __init__(self, n_sats, n_isl, n_gs):
@@ -371,6 +371,7 @@ class Engine:
         self.prev_load = (np.zeros(e), np.zeros(n), np.zeros(g))
         self.unmet = self._zero_unmet()
         self.done = deque()       # (t, value, on_time, kind, why it failed)
+        self.finished = deque(maxlen=5000)   # recent finished jobs, for the per-customer view
         self.lat_ms = deque()     # (t, ms) of admitted latency-bound jobs
         self.delivery_s = deque() # (t, s from arrival to delivery) of served jobs
         self.paid = deque()       # (t, $)
@@ -470,6 +471,7 @@ class Engine:
         self.done.append((now, job["value"], on_time, job["kind"], why))
         if job.get("customer"):
             self.cust_done.append((job["customer"], on_time))
+            self.finished.append(job)
 
     def _weather(self, now, dt):
         """Weather satellites make raw data every tick; raw goes down as is, 'ai' shrinks it onboard first."""
