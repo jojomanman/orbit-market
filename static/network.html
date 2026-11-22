@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbit Market · Network</title>
+<style>
+:root {
+  --bg: #07090c; --panel: #0c1015; --line: #1a2129; --text: #c9d1d9; --dim: #6b7681;
+  --a: #7cc4ff; --b: #ffb35c; --c: #8fd19e; --u: 8px;
+  font: 13px/1.4 ui-sans-serif, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); }
+main { display: grid; grid-template-columns: 1fr 400px; height: 100vh; }
+#graph { position: relative; padding: calc(3 * var(--u)); display: grid; }
+svg { width: 100%; height: 100%; }
+aside { background: var(--panel); border-left: 1px solid var(--line); padding: calc(3 * var(--u));
+  display: grid; grid-template-rows: auto auto auto auto 1fr auto; gap: calc(3 * var(--u)); overflow: hidden; }
+header { display: flex; justify-content: space-between; align-items: baseline; }
+h1 { font-size: 15px; font-weight: 600; letter-spacing: .02em; }
+a { color: var(--dim); text-decoration: none; } a:hover { color: var(--text); }
+.label { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: var(--u); }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--line); }
+.seg button { background: none; border: 0; color: var(--dim); font: inherit; font-size: 12px; padding: 6px 0; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { color: var(--text); background: var(--line); }
+#about { color: var(--dim); min-height: 54px; }
+#send { background: none; border: 1px solid var(--a); color: var(--a); font: inherit; padding: 8px; cursor: pointer; }
+#send:disabled { opacity: .4; cursor: default; }
+#log { overflow-y: auto; display: grid; grid-auto-rows: min-content; gap: 6px; }
+#log div { display: grid; grid-template-columns: 44px 1fr; gap: var(--u); }
+#log time { color: var(--dim); }
+#log small { display: block; color: var(--dim); }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th, td { padding: 3px 4px 3px 0; text-align: left; font-weight: 400; vertical-align: top; }
+th { color: var(--dim); font-size: 11px; border-bottom: 1px solid var(--line); }
+tr.on td { color: var(--text); } td { color: var(--dim); }
+#clock { position: absolute; left: calc(3 * var(--u)); top: calc(3 * var(--u)); font-size: 22px; font-weight: 600; color: var(--b); }
+#clock small { display: block; font-size: 11px; font-weight: 400; color: var(--dim); }
+.node text { fill: var(--dim); font-size: 11px; text-anchor: middle; }
+.node .ring { fill: var(--bg); stroke-width: 1.5; }
+.node use { color: var(--text); }
+.node.hit .ring { stroke-width: 3; }
+.edge { stroke: var(--line); stroke-width: 1.5; fill: none; }
+.edge.gs { stroke-dasharray: 6 4; } .edge.isl { stroke-dasharray: 1 4; stroke-linecap: round; }
+.edge.hit { stroke: var(--b); }
+.band { fill: var(--dim); font-size: 10px; letter-spacing: .1em; }
+.legend text { fill: var(--dim); font-size: 10px; }
+#blocks rect { fill: none; stroke: var(--line); } #blocks rect.on { fill: var(--line); stroke: var(--dim); }
+</style>
+</head>
+<body>
+<main>
+  <section id="graph">
+    <div id="clock">T+0:00<small>ship detection, Port of Rotterdam, deliver within 15 min</small></div>
+    <svg id="svg" viewBox="0 0 960 560">
+      <defs>
+        <symbol id="i-user" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="16" cy="11" r="5"/><path d="M6 27c1-6 5-9 10-9s9 3 10 9"/></g></symbol>
+        <symbol id="i-dc" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><rect x="7" y="5" width="18" height="6"/><rect x="7" y="13" width="18" height="6"/><rect x="7" y="21" width="18" height="6"/><path d="M10 8h4M10 16h4M10 24h4"/></g></symbol>
+        <symbol id="i-up" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 14a10 10 0 0 0 14 6z"/><path d="M13 17l-3 10h8l-2-6"/><path d="M22 12l4-4M22 8h4v4"/></g></symbol>
+        <symbol id="i-down" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 14a10 10 0 0 0 14 6z"/><path d="M13 17l-3 10h8l-2-6"/><path d="M26 8l-4 4M22 8v4h4"/></g></symbol>
+        <symbol id="i-opt" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><rect x="12" y="9" width="8" height="10"/><path d="M3 12h7v4H3zM22 12h7v4h-7z"/><circle cx="16" cy="24" r="3"/></g></symbol>
+        <symbol id="i-sar" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><rect x="12" y="6" width="8" height="8"/><path d="M4 17h24v3H4z"/><path d="M11 25q5 3 10 0M8 28q8 4 16 0"/></g></symbol>
+        <symbol id="i-cmp" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><rect x="11" y="11" width="10" height="10"/><path d="M13 8v3M16 8v3M19 8v3M13 21v3M16 21v3M19 21v3"/><path d="M2 13h6v6H2zM24 13h6v6h-6z"/></g></symbol>
+        <symbol id="i-rel" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><rect x="12" y="12" width="8" height="8"/><path d="M3 14h6v4H3zM23 14h6v4h-6z"/><path d="M11 10a6 6 0 0 1 10 0"/><path d="M16 4v4"/></g></symbol>
+      </defs>
+      <text class="band" x="0" y="80">GEO</text>
+      <text class="band" x="0" y="205">LEO</text>
+      <text class="band" x="0" y="390">GROUND</text>
+      <text class="band" x="0" y="500">FIBER</text>
+      <g id="edges"></g><g id="nodes"></g>
+      <circle id="dot" r="5" fill="var(--b)" visibility="hidden"/>
+      <g class="legend" transform="translate(700 540)">
+        <line class="edge" x1="0" y1="0" x2="24" y2="0"/><text x="30" y="3">fiber</text>
+        <line class="edge gs" x1="70" y1="0" x2="94" y2="0"/><text x="100" y="3">up/downlink</text>
+        <line class="edge isl" x1="170" y1="0" x2="194" y2="0"/><text x="200" y="3">ISL</text>
+      </g>
+      <g id="blocks" transform="translate(40 540)"></g>
+    </svg>
+  </section>
+  <aside>
+    <header><h1>Orbit Market · Network</h1><a href="./">Globe</a></header>
+    <div class="seg" id="tabs"></div>
+    <div id="about"></div>
+    <button id="send">Send request</button>
+    <div id="log"></div>
+    <div><div class="label">Same request, three rules</div><table id="cmp"></table></div>
+  </aside>
+</main>
+<script>
+"use strict";
+// Owners: A runs the relay and Europe's stations, B two imaging sats, C a second constellation with its own ground.
+const NODES = {
+  u1: ["user", "Port authority", 100, 480, "U"], u2: ["user", "Insurer", 250, 480, "U"], u3: ["user", "Researcher", 860, 480, "U"],
+  dc1: ["dc", "DC Frankfurt", 410, 480, "A"], dc2: ["dc", "DC Stockholm", 590, 480, "C"],
+  up1: ["up", "Uplink Kiruna", 200, 370, "A"], dn1: ["down", "Downlink Svalbard", 370, 370, "A"],
+  dn2: ["down", "Downlink Inuvik", 610, 370, "C"], up2: ["up", "Uplink Punta Arenas", 780, 370, "C"],
+  rel1: ["rel", "Relay (GEO)", 480, 70, "A"],
+  opt1: ["opt", "Optical B1", 110, 210, "B"], sar1: ["sar", "SAR B2", 250, 210, "B"], cmp1: ["cmp", "Compute A1", 400, 210, "A"],
+  cmp2: ["cmp", "Compute C1", 560, 210, "C"], sar2: ["sar", "SAR C2", 710, 210, "C"], opt2: ["opt", "Optical C3", 850, 210, "C"],
+};
+const EDGES = [
+  ...["u1-dc1", "u2-dc1", "u3-dc2", "dc1-dc2", "up1-dc1", "dn1-dc1", "dn2-dc2", "up2-dc2"].map(e => [e, "fiber"]),
+  ...["up1-rel1", "up1-sar1", "up1-cmp1", "up2-cmp2", "up2-opt2", "up2-rel1", "rel1-dn1", "rel1-dn2", "cmp1-dn1",
+      "opt1-dn1", "cmp2-dn2", "sar2-dn2"].map(e => [e, "gs"]),
+  ...["opt1-sar1", "sar1-cmp1", "cmp1-cmp2", "cmp2-sar2", "sar2-opt2", "rel1-sar1", "rel1-cmp1", "rel1-cmp2",
+      "rel1-sar2"].map(e => [e, "isl"]),
+];
+const OWNER_COLOR = { A: "var(--a)", B: "var(--b)", C: "var(--c)", U: "var(--dim)" };
+
+// One physical world for all three rules (docs/GOVERNANCE.md). Only who decides, how long deciding takes and
+// what is paid differ, so the comparison is fair.
+const PASS = { sar1: 45, sar2: 540 };     // next SAR access over the port, s from request
+const CAPTURE = 15, ISL_RAW = 4, DETECT = 40, FIBER = 0.05, HOP = 0.3;
+const COST = 264;                          // providers' summed reserve cost for the job, $ (MODEL-style legs)
+const BLOCK = 12;                          // Ethereum slot time, s
+
+const VARIANTS = {
+  central: {
+    name: "Centralized",
+    about: "One operator owns every satellite, station and data center. Its scheduler sees all state and assigns the job optimally. Closed: nobody else can join.",
+    decide: [["u1", "dc1", 1, "Scheduler at Operator ops (DC Frankfurt) sees all passes and loads; assigns SAR B2 pass at T+0:45", "Operator decides", ""]],
+    price: COST * 1.4, fee: 0, overhead: "1 s solve, no fees; 40 % margin is the rent",
+    trust: "the operator", join: "nobody", chain: false,
+  },
+  contract: {
+    name: "Contract",
+    about: "Independent owners act only on local info but all follow one contract: quote rule, 2nd-price award, peering/transit between owners, escrow per leg. Routing emerges like BGP on the internet.",
+    decide: [["u1", "dc1", 0.5, "Port sends RFQ to its entry provider A (DC Frankfurt)", "Port decides", ""],
+             ["dc1", "dc2", 2.5, "A forwards the RFQ to peers B and C; each quotes from its own passes only (3 s window)", "each owner decides its quote", ""],
+             ["dc1", "dc1", 0.5, "Lowest quote wins (B2 pass at T+0:45), paid the 2nd-lowest; escrow opened per leg", "the contract decides", "Port → escrow $" + Math.round(COST * 1.2)]],
+    price: COST * 1.18 + COST * 1.18 * 0.02, fee: COST * 1.18 * 0.02, overhead: "3.5 s quotes + escrow, 2 % fee",
+    trust: "the contract + escrow agent", join: "anyone who signs", chain: false,
+  },
+  crypto: {
+    name: "Decentralized",
+    about: "Permissionless: anyone stakes a deposit and bids into an on-chain order book. Escrow and payment in a token, settled per block (12 s); missed SLAs get the stake slashed.",
+    decide: [["u1", "dc1", BLOCK, "Port posts the order on-chain; waits for the next block", "Port decides", "Port → escrow (token) + gas"],
+             ["dc1", "dc2", 2 * BLOCK, "Providers see the order, bid over 2 blocks; each bid locks their stake", "each provider decides", "bidders pay gas"],
+             ["dc1", "dc1", BLOCK, "Match block: SAR B2 pass at T+0:45 already gone; SAR C2 wins (pass T+9:00)", "the smart contract decides", ""]],
+    price: COST * 1.15 + 2, fee: 2, overhead: "48 s in 4 blocks (missed a pass), ~$2 gas",
+    trust: "the chain + stakes", join: "anyone with stake", chain: true,
+  },
+};
+
+// Physical legs after the decision: one optimal path given which pass the decision still catches.
+function run(key) {
+  const v = VARIANTS[key], steps = [];
+  let t = 0;
+  for (const [a, b, dt, text, who, pay] of v.decide) { t += dt; steps.push({ hops: [a, b], t, text, who, pay }); }
+  const sar = t <= PASS.sar1 ? "sar1" : "sar2", cmp = sar === "sar1" ? "cmp1" : "cmp2";
+  t += 3 * HOP;
+  steps.push({ hops: ["dc1", "up1", "rel1", sar], t, text: "Tasking uplinked via Kiruna and the GEO relay to " + NODES[sar][1], who: "", pay: key === "central" ? "" : "A gets transit for the relay hop" });
+  t = PASS[sar] + CAPTURE;
+  steps.push({ hops: [sar], t, text: NODES[sar][1] + " images the port (SAR sees through cloud)", who: "", pay: "" });
+  t += ISL_RAW;
+  steps.push({ hops: [sar, cmp], t, text: "Raw image over ISL to " + NODES[cmp][1], who: "", pay: "" });
+  t += DETECT;
+  steps.push({ hops: [cmp], t, text: "Onboard ship detection; 2 MB result instead of 2 GB raw", who: "", pay: "" });
+  t += 2 * HOP + 2 * FIBER;
+  steps.push({ hops: [cmp, "rel1", "dn1", "dc1", "u1"], t, text: "Detections down via relay → Svalbard → Port", who: "", pay: "" });
+  const delivered = t;
+  const settle = {
+    central: "Port pays Operator $" + Math.round(v.price) + " (one bill)",
+    contract: "Escrow releases per leg on receipt: B capture, A compute + delivery; A↔B transit per GB; 2 % fee",
+    crypto: "Proof tx in next block (T+" + fmt(t + BLOCK) + "): escrow pays C + A in tokens; stakes unlocked",
+  }[key];
+  steps.push({ hops: [], t: key === "crypto" ? t + BLOCK : t, text: settle, who: "", pay: "" });
+  return { steps, delivered };
+}
+
+const fmt = s => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
+const key2 = (a, b) => [a, b].sort().join("-");
+
+const edgeEls = {}, nodeEls = {};
+for (const [e, type] of EDGES) {
+  const [a, b] = e.split("-"), [, , x1, y1] = NODES[a], [, , x2, y2] = NODES[b];
+  edgeEls[key2(a, b)] = el("line", { class: "edge " + type, x1, y1, x2, y2 }, $("edges"));
+}
+for (const id in NODES) {
+  const [icon, label, x, y] = NODES[id];
+  const g = el("g", { class: "node", transform: `translate(${x} ${y})` }, $("nodes"));
+  el("circle", { class: "ring", r: 22 }, g);
+  el("use", { href: "#i-" + icon, x: -14, y: -14, width: 28, height: 28 }, g);
+  el("text", { y: 38 }, g).textContent = label;
+  nodeEls[id] = g;
+}
+for (let i = 0; i < 6; i++) el("rect", { x: i * 22, y: -8, width: 16, height: 16 }, $("blocks"));
+
+let variant = "central", busy = false;
+function paint() {
+  const v = VARIANTS[variant];
+  for (const id in NODES) {
+    const o = NODES[id][4];
+    nodeEls[id].querySelector(".ring").setAttribute("stroke", o === "U" ? OWNER_COLOR.U : variant === "central" ? OWNER_COLOR.A : OWNER_COLOR[o]);
+  }
+  $("about").textContent = v.about;
+  $("blocks").style.display = v.chain ? "" : "none";
+  for (const b of $("tabs").children) b.classList.toggle("on", b.dataset.k === variant);
+}
+for (const k in VARIANTS) {
+  const b = document.createElement("button");
+  b.textContent = VARIANTS[k].name; b.dataset.k = k;
+  b.onclick = () => { if (busy) return; variant = k; reset(); paint(); };
+  $("tabs").appendChild(b);
+}
+function reset() {
+  for (const e of Object.values(edgeEls)) e.classList.remove("hit");
+  for (const n of Object.values(nodeEls)) n.classList.remove("hit");
+  for (const r of $("blocks").children) r.classList.remove("on");
+  $("log").textContent = "";
+  setClock(0);
+}
+function setClock(t) { $("clock").firstChild.textContent = "T+" + fmt(t); }
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function travel(a, b) {
+  const [, , x1, y1] = NODES[a], [, , x2, y2] = NODES[b], dot = $("dot");
+  edgeEls[key2(a, b)]?.classList.add("hit");
+  dot.setAttribute("visibility", "visible");
+  for (let i = 0; i <= 12; i++) {
+    dot.setAttribute("cx", x1 + (x2 - x1) * i / 12); dot.setAttribute("cy", y1 + (y2 - y1) * i / 12);
+    await sleep(25);
+  }
+  dot.setAttribute("visibility", "hidden");
+}
+async function send() {
+  busy = true; $("send").disabled = true; reset();
+  for (const s of run(variant).steps) {
+    for (let i = 0; i + 1 < s.hops.length; i++) if (s.hops[i] !== s.hops[i + 1]) await travel(s.hops[i], s.hops[i + 1]);
+    for (const h of s.hops) nodeEls[h].classList.add("hit");
+    setClock(s.t);
+    [...$("blocks").children].forEach((r, i) => r.classList.toggle("on", i < Math.floor(s.t / BLOCK)));
+    const row = document.createElement("div"), detail = [s.who, s.pay].filter(Boolean).join(" · ");
+    row.innerHTML = `<time>${fmt(s.t)}</time><span></span>`;
+    row.querySelector("span").textContent = s.text;
+    if (detail) { const sm = document.createElement("small"); sm.textContent = detail; row.querySelector("span").appendChild(sm); }
+    $("log").appendChild(row); $("log").scrollTop = 1e6;
+    await sleep(500);
+  }
+  compare(true);
+  busy = false; $("send").disabled = false;
+}
+$("send").onclick = send;
+
+function compare(show) {
+  const t = $("cmp");
+  t.innerHTML = "<tr><th></th><th>Delivered</th><th>Price</th><th>Overhead</th><th>Trust</th><th>Who joins</th></tr>";
+  for (const k in VARIANTS) {
+    const v = VARIANTS[k], r = run(k), tr = document.createElement("tr");
+    tr.className = k === variant ? "on" : "";
+    for (const c of [v.name, show ? fmt(r.delivered) : "–", "$" + Math.round(v.price), v.overhead, v.trust, v.join]) {
+      const td = document.createElement("td"); td.textContent = c; tr.appendChild(td);
+    }
+    t.appendChild(tr);
+  }
+}
+paint(); compare(true);
+</script>
+</body>
+</html>

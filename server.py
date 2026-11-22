@@ -532,6 +532,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, job_view(job)) if job else self._json(404, {"error": "unknown job"})
         if path == "/" or path == "":
             path = "/index.html"
+        if path == "/network":
+            path = "/network.html"
         full = os.path.realpath(os.path.join(STATIC, path.lstrip("/")))
         if not full.startswith(STATIC + os.sep) or not os.path.isfile(full):
             return self._json(404, {"error": "not found"})
