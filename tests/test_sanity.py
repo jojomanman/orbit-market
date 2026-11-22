@@ -179,8 +179,9 @@ class FeaturedPlan(unittest.TestCase):
 
     def test_planned_routes_are_physical_and_near_shortest(self):
         """Every hop within ISL range and clear of the Earth (+80 km); on the dense shells each half of the route is
-        within 1.5x of the straight-line light time between its ends plus 10 ms, the +Grid staircase on a short route
-        (3 cross-plane hops of ~1,400 km then in-plane: 2.1x on 12 ms). The 8-plane polar shell has no seam links."""
+        within 1.5x of the straight-line light time between its ends plus 15 ms: a diagonal +Grid staircase on a short
+        route (S5: 955 km cross-plane x 361 km in-plane hops) runs up to ~2.8x on 8 ms. The 8-plane polar shell has no
+        seam links."""
         from server import DEFAULT_MODE, Sim
         from sim.orbit import C_KM_S, ISL_MAX_KM
         sim = Sim(0.2, "customers")
@@ -203,7 +204,7 @@ class FeaturedPlan(unittest.TestCase):
                         self.assertLessEqual(np.linalg.norm(d), ISL_MAX_KM)
                 if len(seg) > 1 and con.shell[j["placed"]["sat"]] != 3:
                     lb = np.linalg.norm(pos(seg[0]["node"]) - pos(seg[-1]["node"])) / C_KM_S * 1000
-                    self.assertLess(sum(l["ms"] for l in seg[1:]), 1.5 * lb + 10, (j["id"], seg[0]["name"], seg[-1]["name"]))
+                    self.assertLess(sum(l["ms"] for l in seg[1:]), 1.5 * lb + 15, (j["id"], seg[0]["name"], seg[-1]["name"]))
 
     def test_no_jobs_means_no_featured(self):
         from server import Sim

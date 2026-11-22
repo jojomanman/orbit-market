@@ -152,6 +152,23 @@ class Network:
             path.append(int(pred[path[-1]]))
         return path[::-1]
 
+    def exit_path(self, src, gsat, gst, ground, onward, slack=1.5):
+        """ISL path from src ending at a station node: the ground edge k (gsat[k] -> gst[k], weight ground[k]) that
+        leaves the mesh soonest among those whose total delay, mesh + ground + onward[k] (fibre to the customer), is
+        within slack x the least. A 37-hop in-plane crawl to the station next to the customer is never what an
+        operator does when a 2-hop downlink and fibre arrive a few ms later: the mesh is the priced, scarce good."""
+        dist, pred = dijkstra(self.isl_graph, indices=src, return_predecessors=True)
+        mesh = dist[gsat] + ground
+        total = mesh + onward
+        best = np.min(total) if len(total) else np.inf
+        if not np.isfinite(best):
+            return None
+        k = int(np.argmin(np.where(total <= slack * best, mesh, np.inf)))
+        path = [int(gsat[k])]
+        while path[-1] != src:
+            path.append(int(pred[path[-1]]))
+        return path[::-1] + [self.n + int(gst[k])]
+
     def hops(self, path):
         """Yield ('isl', idx) / ('dl', sat) / ('gs', station) for every capacity a path uses."""
         for a, b in zip(path, path[1:]):

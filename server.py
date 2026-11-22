@@ -193,11 +193,14 @@ class Sim:
         """Contract model: the relay route is fixed when the job is matched, not discovered hop by hop.
 
         Every leg minimises delay (light time, per-hop processing, queueing at current loads) at the time the data
-        actually moves: the input goes up now at the station nearest the customer, through whichever satellite that
-        station sees gives the shortest mesh path to the compute satellite; the output comes down at compute end,
-        from the orbit positions then, to the station with the least delay including fibre from it to the customer."""
+        actually moves. The input goes up at match time, when the compute satellite is the one over the customer
+        (that is why it won), from the station nearest the customer through whichever satellite that station sees
+        gives the shortest mesh path. The output comes down when compute ends, from the orbit positions then, at the
+        station that gets it off the mesh soonest among those within 1.5x the least total delay including fibre on
+        to the customer: mesh capacity is the priced, scarce good and fibre is not."""
         n, sat = self.con.n_sats, int(j["placed"]["sat"])
-        geo = Geometry(self.con, self.t)
+        t_up = j["placed"]["t"]
+        geo = Geometry(self.con, t_up)
         weight = ROUTERS["latency"]
         nodes = [sat]
         loc = j.get("location")
@@ -217,16 +220,16 @@ class Sim:
                 if mesh:
                     nodes = [n + g] + mesh[::-1]
         at = len(nodes) - 1
-        # The downlink is booked now for the orbit positions when compute finishes, on today's loads and prices.
-        t_out = self.t + j["duration"]
+        # The downlink is booked at the match for the orbit positions when compute finishes, on today's loads and prices.
+        t_out = t_up + j["duration"]
         geo_out = Geometry(self.con, t_out)
-
-        def to_customer(net, pr, load, gl):
-            w_isl, w_gs = weight(net, pr, load, gl)
-            return w_isl, w_gs + backhaul[gl[1]]
-        net_out = Network(self.con, geo_out, e.fleet, e.prev_load, to_customer, e.pr)
-        down = net_out.path_to_ground(sat)
-        nodes += down[1:] if down else []
+        net_out = Network(self.con, geo_out, e.fleet, e.prev_load, weight, e.pr)
+        gl = geo_out.gs_links
+        if len(gl):
+            gsat, gst = gl[:, 0].astype(int), gl[:, 1].astype(int)
+            w_gs = weight(net_out, e.pr, e.prev_load, (gsat, gst, gl[:, 2]))[1]
+            down = net_out.exit_path(sat, gsat, gst, w_gs, backhaul[gst])
+            nodes += down[1:] if down else []
         pos = lambda x, i: (geo if i <= at else geo_out).ecef[x] if x < n else self.con.gs_ecef[x - n]
         # Priced as the engine prices the job (_cost): compute on the chosen satellite plus the output's way down.
         # The uplink (station to the first satellite) is priced per GB and contact minute; the input's mesh hops up to
@@ -247,7 +250,7 @@ class Sim:
                 items = [item("downlink", gb_out, "GB", pr.dl[prev]), item("station", gb_out, "GB", pr.gs[x - n])]
             else:
                 items = [item("mesh link", gb_out, "GB", pr.isl[net_out.edge_key[(prev, int(x))]])]
-            legs.append({"node": int(x), "t": self.t if i <= at else t_out, "kind": "gs" if x >= n else "sat",
+            legs.append({"node": int(x), "t": t_up if i <= at else t_out, "kind": "gs" if x >= n else "sat",
                          "name": self.gs_names[x - n] if x >= n else f"sat {x}",
                          "owner": None if x >= n else str(self.con.owner[x]), "km": round(km), "ms": round(1000 * km / C_KM_S, 2),
                          "items": items})
@@ -269,7 +272,7 @@ class Sim:
         # Sensor time is a list price fixed at the order, so it is never rescaled; it sits first in the compute step.
         if j.get("sensor_usd"):
             compute.insert(0, item("imaging", j["km2"], "km2", j["sensor_usd"] / j["km2"]))
-        return {"t": self.t, "legs": legs, "compute_at": at, "compute": compute,
+        return {"t": t_up, "legs": legs, "compute_at": at, "compute": compute,
                 "downlink_s": round(j["out_gb"] * 8 / ph.DOWNLINK_GBPS, 1)}
 
     def featured_view(self):

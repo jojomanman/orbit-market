@@ -642,9 +642,11 @@ function legEnds(i, t) {
   return [nodeAt(L[i - 1].node, t, new THREE.Vector3()), nodeAt(L[i].node, t, new THREE.Vector3())];
 }
 const legDir = new THREE.Vector3();
+// The whole-route overview pins each leg at its own planned instant (up at match, down at compute end): a leg
+// re-aimed an hour later hangs in space where nothing happened.
 function aimLegs(t) {
   for (const [i, m] of walkLegs) {
-    const [p, q] = legEnds(i, t);
+    const [p, q] = legEnds(i, m.userData.at ?? t);
     legDir.subVectors(q, p);
     m.position.lerpVectors(p, q, 0.5);
     m.scale.set(m.userData.r, legDir.length(), m.userData.r);
@@ -663,6 +665,7 @@ function buildRoute() {
     const m = new THREE.Mesh(LEG_GEOM, new THREE.MeshBasicMaterial({ color, transparent: !on,
       opacity: on ? 1 : i < reached ? 0.55 : 0.3 }));
     m.userData.r = on ? 0.0022 : 0.0009;
+    if (s.focus.route) m.userData.at = L[i].t;
     walkGroup.add(m); walkLegs.push([i, m]);
     if (on && !s.focus.route) packetLegs.push(i);
   }
@@ -673,7 +676,7 @@ function buildRoute() {
   // Focus point of the step.
   if (s.focus.ll) llAt(s.focus.ll, s.t, focusP);
   else if (s.focus.node != null) nodeAt(s.focus.node, s.t, focusP);
-  else { focusP.set(0, 0, 0); for (let i = 1; i < L.length; i++) legEnds(i, s.t).forEach((v) => focusP.add(v)); focusP.normalize(); }
+  else { focusP.set(0, 0, 0); for (let i = 1; i < L.length; i++) legEnds(i, L[i].t).forEach((v) => focusP.add(v)); focusP.normalize(); }
   const label = s.focus.ll ? tx.why : s.focus.node != null ? (L.find((l) => l.node === s.focus.node) || {}).name : "";
   const own = s.focus.node != null && s.focus.node < N ? (L.find((l) => l.node === s.focus.node) || {}).owner : null;
   $("wlabel").textContent = label + (own ? ` · operator ${own}` : "");
