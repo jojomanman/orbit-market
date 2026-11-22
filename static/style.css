@@ -53,6 +53,11 @@ td button { background: none; border: 1px solid var(--line); color: var(--text);
   padding: 1px 8px; cursor: pointer; }
 td button:hover { border-color: var(--dim); }
 #job { font-size: 12px; }
+#customers { max-height: 220px; overflow-y: auto; }
+#custs tr[data-id] { cursor: pointer; }
+#custs th + th, #custs td + td { padding-left: var(--u); }
+#custs td:first-child { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#custs tr[data-id]:hover td, #custs tr.on td { color: var(--accent); }
 select, input { background: var(--bg); color: var(--text); border: 1px solid var(--line); font: inherit; font-size: 12px; }
 select { width: 100%; padding: 5px 4px; }
 #desc { font-size: 12px; margin: var(--u) 0; min-height: 1.4em; }

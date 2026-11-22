@@ -155,6 +155,24 @@ class Sim:
             self.api_jobs[job["id"]] = job
         return job
 
+    def customer_jobs(self, cid, mode):
+        """One customer's live and recently finished jobs in one engine: where, which satellite, which route."""
+        e = self.engines[mode]
+        live = [(j, "waiting") for j in list(e.pending)] + [(t["job"], "computing") for t in list(e.tasks)] \
+            + [(f["job"], "downlink") for f in list(e.flows)]
+        done = [(j, "served" if j["result"]["on_time"] else "missed") for j in list(e.finished)]
+        out = []
+        for j, status in live + done[::-1]:
+            if j.get("customer") != cid:
+                continue
+            p = j.get("placed") or {}
+            out.append({"id": j["id"], "status": status, "loc": j.get("location"),
+                        "sat": None if p.get("sat") is None else int(p["sat"]),
+                        "path": [int(x) for x in p["path"]] if p.get("path") else None, "usd": p.get("price")})
+            if len(out) >= 40:
+                break
+        return out
+
     # -- use case: an image of a location -------------------------------------------------------------------------
     def quote(self, lat, lon):
         """Price of 'an image of this point, delivered within W' for each urgency W.
@@ -440,6 +458,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/customers":
             c = sim.customers
             return self._json(200, {"customers": c.table() if c else [], "problems": c.problems if c else []})
+        if path.startswith("/api/customers/") and path.endswith("/jobs"):
+            return self._json(200, {"jobs": sim.customer_jobs(path.split("/")[3], mode)})
         if path == "/api/quote":
             try:
                 lat, lon = float(q.get("lat", "x")), float(q.get("lon", "x"))
