@@ -44,7 +44,8 @@ earth.add(new THREE.Mesh(
         float l = dot(normalize(vN), sun);
         float d = smoothstep(-0.08, 0.12, l);
         vec3 dc = texture2D(day, vUv).rgb;
-        dc = mix(vec3(dot(dc, vec3(0.3,0.59,0.11))), dc, 0.9) * (0.55 + 0.85*max(l, 0.));
+        dc *= 1. - 0.5*smoothstep(0.7, 0.9, dot(dc, vec3(0.3,0.59,0.11)));   // tame polar ice glare at the terminator
+        dc = mix(vec3(dot(dc, vec3(0.3,0.59,0.11))), dc, 0.9) * (0.25 + 1.15*max(l, 0.));
         vec3 nc = texture2D(night, vUv).rgb * vec3(1.0,0.85,0.6) * 0.9 + vec3(0.006,0.009,0.014);
         gl_FragColor = vec4(mix(nc, dc, d), 1.); }`,
   })));
@@ -185,14 +186,27 @@ function nodePos(id, out) {
 }
 
 const fade = new Map();   // route id -> alpha, so routes fade in and out instead of popping
-const ARC = 6;           // sub-segments per hop
+const ARC_DEG = 2;       // one sub-segment per 2 degrees of arc
 const pa = new THREE.Vector3(), pb = new THREE.Vector3(), pc = new THREE.Vector3(), pd = new THREE.Vector3();
+const ua = new THREE.Vector3(), ub = new THREE.Vector3();
+// Point t along the great circle from pa to pb, radius eased between their radii and lifted by `lift` at the middle.
+function arcPoint(t, lift, out) {
+  const ang = ua.angleTo(ub), s = Math.sin(ang);
+  out.copy(ua).multiplyScalar(s > 1e-6 ? Math.sin((1 - t) * ang) / s : 1 - t)
+    .addScaledVector(ub, s > 1e-6 ? Math.sin(t * ang) / s : t);
+  return out.multiplyScalar(pa.length() + (pb.length() - pa.length()) * t + lift * Math.sin(Math.PI * t));
+}
 function drawRoutes(dt) {
   if (highlight && highlight.path) routes = routes.filter((r) => r.id !== "hl").concat([{ id: "hl", path: highlight.path, load: 1 }]);
   const live = new Set(routes.map((r) => r.id));
   for (const r of routes) if (!fade.has(r.id)) fade.set(r.id, 0);
   let k = 0;
   const c = new THREE.Color();
+  const line = (a, b, w) => {
+    if (k >= MAX_SEG) return;
+    routePos.set([a.x, a.y, a.z, b.x, b.y, b.z], k * 6);
+    routeCol.set([c.r * w, c.g * w, c.b * w, c.r * w, c.g * w, c.b * w], k++ * 6);
+  };
   for (const r of routes.concat([...fade.keys()].filter((id) => !live.has(id)).map((id) => ({ id, ghost: true })))) {
     let f = fade.get(r.id) + (r.ghost ? -dt : dt) * 1.5;
     if (f <= 0 && r.ghost) { fade.delete(r.id); continue; }
@@ -201,21 +215,21 @@ function drawRoutes(dt) {
     else ghostPaths.set(r.id, r);
     if (!r.path) continue;
     c.setHex(0x5f8fb8).lerp(new THREE.Color(0xffb35c), Math.min(1, r.load || 0));
-    const w = 0.55 * f;
-    for (let j = 0; j + 1 < r.path.length && k < MAX_SEG; j++) {
-      nodePos(r.path[j], pa); nodePos(r.path[j + 1], pb);
-      const ground = r.path[j + 1] >= N;
-      const steps = ground ? 1 : ARC;
-      const ra = pa.length(), rb = pb.length();
-      for (let q = 0; q < steps && k < MAX_SEG; q++, k++) {
-        for (const [t, out] of [[q / steps, pc], [(q + 1) / steps, pd]]) {
-          if (ground) out.copy(pa).lerp(pb, t);
-          else out.copy(pa).normalize().lerp(pb.clone().normalize(), t).normalize().multiplyScalar(ra + (rb - ra) * t);
-        }
-        routePos.set([pc.x, pc.y, pc.z, pd.x, pd.y, pd.z], k * 6);
-        routeCol.set([c.r * w, c.g * w, c.b * w, c.r * w, c.g * w, c.b * w], k * 6);
-      }
+    const w = (r.id === "hl" ? 0.9 : 0.35) * f;
+    // The relay hops zigzag through the mesh grid; draw the satellite part as one great-circle arc from the first to
+    // the last satellite and the ground legs as straight up/down links.
+    const sats = r.path.filter((id) => id < N);
+    if (!sats.length) continue;
+    if (r.path[0] >= N) line(nodePos(r.path[0], pc), nodePos(sats[0], pd), w);
+    if (sats.length > 1) {
+      nodePos(sats[0], pa); nodePos(sats[sats.length - 1], pb);
+      ua.copy(pa).normalize(); ub.copy(pb).normalize();
+      const ang = ua.angleTo(ub), steps = Math.max(1, Math.ceil(ang * 180 / Math.PI / ARC_DEG));
+      arcPoint(0, 0, pc);
+      for (let q = 1; q <= steps; q++) { arcPoint(q / steps, 0.08 * ang, pd); line(pc, pd, w); pc.copy(pd); }
     }
+    const last = r.path[r.path.length - 1];
+    if (last >= N) line(nodePos(sats[sats.length - 1], pc), nodePos(last, pd), w);
   }
   for (const id of ghostPaths.keys()) if (!fade.has(id)) ghostPaths.delete(id);
   routeGeom.setDrawRange(0, k * 2);
