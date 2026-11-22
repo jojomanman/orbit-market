@@ -17,7 +17,7 @@ main { display: grid; grid-template-columns: 1fr 400px; height: 100vh; }
 #graph { position: relative; padding: calc(3 * var(--u)); display: grid; }
 svg { width: 100%; height: 100%; }
 aside { background: var(--panel); border-left: 1px solid var(--line); padding: calc(3 * var(--u));
-  display: grid; grid-template-rows: auto auto auto auto 1fr auto; gap: calc(3 * var(--u)); overflow: hidden; }
+  display: grid; grid-template-rows: auto auto auto auto auto 1fr auto; gap: calc(3 * var(--u)); overflow: hidden; }
 header { display: flex; justify-content: space-between; align-items: baseline; }
 h1 { font-size: 15px; font-weight: 600; letter-spacing: .02em; }
 a { color: var(--dim); text-decoration: none; } a:hover { color: var(--text); }
@@ -27,6 +27,8 @@ a { color: var(--dim); text-decoration: none; } a:hover { color: var(--text); }
 .seg button + button { border-left: 1px solid var(--line); }
 .seg button.on { color: var(--text); background: var(--line); }
 #about { color: var(--dim); min-height: 54px; }
+#owners { display: flex; gap: calc(2 * var(--u)); color: var(--dim); font-size: 12px; margin-top: calc(-2 * var(--u)); }
+#owners i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
 #send { background: none; border: 1px solid var(--a); color: var(--a); font: inherit; padding: 8px; cursor: pointer; }
 #send:disabled { opacity: .4; cursor: default; }
 #log { overflow-y: auto; display: grid; grid-auto-rows: min-content; gap: 6px; }
@@ -39,7 +41,7 @@ th { color: var(--dim); font-size: 11px; border-bottom: 1px solid var(--line); }
 tr.on td { color: var(--text); } td { color: var(--dim); }
 #clock { position: absolute; left: calc(3 * var(--u)); top: calc(3 * var(--u)); font-size: 22px; font-weight: 600; color: var(--b); }
 #clock small { display: block; font-size: 11px; font-weight: 400; color: var(--dim); }
-.node text { fill: var(--dim); font-size: 11px; text-anchor: middle; }
+.node text { fill: var(--dim); font-size: 11px; text-anchor: middle; paint-order: stroke; stroke: var(--bg); stroke-width: 4px; }
 .node .ring { fill: var(--bg); stroke-width: 1.5; }
 .node use { color: var(--text); }
 .node.hit .ring { stroke-width: 3; }
@@ -48,14 +50,13 @@ tr.on td { color: var(--text); } td { color: var(--dim); }
 .edge.hit { stroke: var(--b); }
 .band { fill: var(--dim); font-size: 10px; letter-spacing: .1em; }
 .legend text { fill: var(--dim); font-size: 10px; }
-#blocks rect { fill: none; stroke: var(--line); } #blocks rect.on { fill: var(--line); stroke: var(--dim); }
 </style>
 </head>
 <body>
 <main>
   <section id="graph">
     <div id="clock">T+0:00<small>ship detection, Port of Rotterdam, deliver within 15 min</small></div>
-    <svg id="svg" viewBox="0 0 960 560">
+    <svg id="svg" viewBox="0 0 960 600">
       <defs>
         <symbol id="i-user" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="16" cy="11" r="5"/><path d="M6 27c1-6 5-9 10-9s9 3 10 9"/></g></symbol>
         <symbol id="i-dc" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><rect x="7" y="5" width="18" height="6"/><rect x="7" y="13" width="18" height="6"/><rect x="7" y="21" width="18" height="6"/><path d="M10 8h4M10 16h4M10 24h4"/></g></symbol>
@@ -72,18 +73,19 @@ tr.on td { color: var(--text); } td { color: var(--dim); }
       <text class="band" x="0" y="500">FIBER</text>
       <g id="edges"></g><g id="nodes"></g>
       <circle id="dot" r="5" fill="var(--b)" visibility="hidden"/>
-      <g class="legend" transform="translate(700 540)">
+      <g class="legend" transform="translate(700 585)">
         <line class="edge" x1="0" y1="0" x2="24" y2="0"/><text x="30" y="3">fiber</text>
         <line class="edge gs" x1="70" y1="0" x2="94" y2="0"/><text x="100" y="3">up/downlink</text>
         <line class="edge isl" x1="170" y1="0" x2="194" y2="0"/><text x="200" y="3">ISL</text>
       </g>
-      <g id="blocks" transform="translate(40 540)"></g>
+      <text id="blocks" class="band" x="40" y="588"></text>
     </svg>
   </section>
   <aside>
     <header><h1>Orbit Market · Network</h1><a href="./">Globe</a></header>
     <div class="seg" id="tabs"></div>
     <div id="about"></div>
+    <div id="owners"></div>
     <button id="send">Send request</button>
     <div id="log"></div>
     <div><div class="label">Same request, three rules</div><table id="cmp"></table></div>
@@ -93,7 +95,7 @@ tr.on td { color: var(--text); } td { color: var(--dim); }
 "use strict";
 // Owners: A runs the relay and Europe's stations, B two imaging sats, C a second constellation with its own ground.
 const NODES = {
-  u1: ["user", "Port authority", 100, 480, "U"], u2: ["user", "Insurer", 250, 480, "U"], u3: ["user", "Researcher", 860, 480, "U"],
+  u1: ["user", "Port authority", 100, 480, "U"], u2: ["user", "Insurer", 250, 530, "U"], u3: ["user", "Researcher", 860, 530, "U"],
   dc1: ["dc", "DC Frankfurt", 410, 480, "A"], dc2: ["dc", "DC Stockholm", 590, 480, "C"],
   up1: ["up", "Uplink Kiruna", 200, 370, "A"], dn1: ["down", "Downlink Svalbard", 370, 370, "A"],
   dn2: ["down", "Downlink Inuvik", 610, 370, "C"], up2: ["up", "Uplink Punta Arenas", 780, 370, "C"],
@@ -120,19 +122,19 @@ const BLOCK = 12;                          // Ethereum slot time, s
 const VARIANTS = {
   central: {
     name: "Centralized",
-    about: "One operator owns every satellite, station and data center. Its scheduler sees all state and assigns the job optimally. Closed: nobody else can join.",
+    about: "One operator owns every satellite, station and data center. Its scheduler sees all state and assigns the job optimally. No competition: it prices at cost + 40 %.",
     decide: [["u1", "dc1", 1, "Scheduler at Operator ops (DC Frankfurt) sees all passes and loads; assigns SAR B2 pass at T+0:45", "Operator decides", ""]],
-    price: COST * 1.4, fee: 0, overhead: "1 s solve, no fees; 40 % margin is the rent",
-    trust: "the operator", join: "nobody", chain: false,
+    price: COST * 1.4, overhead: "1 s, no fee",
+    trust: "operator", join: "owner only", chain: false,
   },
   contract: {
     name: "Contract",
     about: "Independent owners act only on local info but all follow one contract: quote rule, 2nd-price award, peering/transit between owners, escrow per leg. Routing emerges like BGP on the internet.",
     decide: [["u1", "dc1", 0.5, "Port sends RFQ to its entry provider A (DC Frankfurt)", "Port decides", ""],
              ["dc1", "dc2", 2.5, "A forwards the RFQ to peers B and C; each quotes from its own passes only (3 s window)", "each owner decides its quote", ""],
-             ["dc1", "dc1", 0.5, "Lowest quote wins (B2 pass at T+0:45), paid the 2nd-lowest; escrow opened per leg", "the contract decides", "Port → escrow $" + Math.round(COST * 1.2)]],
-    price: COST * 1.18 + COST * 1.18 * 0.02, fee: COST * 1.18 * 0.02, overhead: "3.5 s quotes + escrow, 2 % fee",
-    trust: "the contract + escrow agent", join: "anyone who signs", chain: false,
+             ["dc1", "dc1", 0.5, "Lowest quote wins (B2 pass at T+0:45), paid the 2nd-lowest; escrow opened per leg", "the contract decides", "Port → escrow $" + Math.round(COST * 1.18 * 1.02)]],
+    price: COST * 1.18 * 1.02, overhead: "3.5 s, 2 % fee",
+    trust: "contract + escrow", join: "who signs", chain: false,
   },
   crypto: {
     name: "Decentralized",
@@ -140,8 +142,8 @@ const VARIANTS = {
     decide: [["u1", "dc1", BLOCK, "Port posts the order on-chain; waits for the next block", "Port decides", "Port → escrow (token) + gas"],
              ["dc1", "dc2", 2 * BLOCK, "Providers see the order, bid over 2 blocks; each bid locks their stake", "each provider decides", "bidders pay gas"],
              ["dc1", "dc1", BLOCK, "Match block: SAR B2 pass at T+0:45 already gone; SAR C2 wins (pass T+9:00)", "the smart contract decides", ""]],
-    price: COST * 1.15 + 2, fee: 2, overhead: "48 s in 4 blocks (missed a pass), ~$2 gas",
-    trust: "the chain + stakes", join: "anyone with stake", chain: true,
+    price: COST * 1.15 + 2, overhead: "48 s, ~$2 gas",
+    trust: "code + stake", join: "anyone staking", chain: true,
   },
 };
 
@@ -190,7 +192,6 @@ for (const id in NODES) {
   el("text", { y: 38 }, g).textContent = label;
   nodeEls[id] = g;
 }
-for (let i = 0; i < 6; i++) el("rect", { x: i * 22, y: -8, width: 16, height: 16 }, $("blocks"));
 
 let variant = "central", busy = false;
 function paint() {
@@ -200,23 +201,27 @@ function paint() {
     nodeEls[id].querySelector(".ring").setAttribute("stroke", o === "U" ? OWNER_COLOR.U : variant === "central" ? OWNER_COLOR.A : OWNER_COLOR[o]);
   }
   $("about").textContent = v.about;
+  $("owners").innerHTML = variant === "central" ? '<span><i style="background: var(--a)"></i>one operator</span>'
+    : ["A", "B", "C"].map(o => `<span><i style="background: ${OWNER_COLOR[o]}"></i>owner ${o}</span>`).join("");
   $("blocks").style.display = v.chain ? "" : "none";
   for (const b of $("tabs").children) b.classList.toggle("on", b.dataset.k === variant);
 }
 for (const k in VARIANTS) {
   const b = document.createElement("button");
   b.textContent = VARIANTS[k].name; b.dataset.k = k;
-  b.onclick = () => { if (busy) return; variant = k; reset(); paint(); };
+  b.onclick = () => { if (busy) return; variant = k; reset(); paint(); compare(); };
   $("tabs").appendChild(b);
 }
 function reset() {
   for (const e of Object.values(edgeEls)) e.classList.remove("hit");
   for (const n of Object.values(nodeEls)) n.classList.remove("hit");
-  for (const r of $("blocks").children) r.classList.remove("on");
   $("log").textContent = "";
   setClock(0);
 }
-function setClock(t) { $("clock").firstChild.textContent = "T+" + fmt(t); }
+function setClock(t) {
+  $("clock").firstChild.textContent = "T+" + fmt(t);
+  $("blocks").textContent = "CHAIN · BLOCK +" + Math.floor(t / BLOCK) + " · 12 S EACH";
+}
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function travel(a, b) {
@@ -235,7 +240,6 @@ async function send() {
     for (let i = 0; i + 1 < s.hops.length; i++) if (s.hops[i] !== s.hops[i + 1]) await travel(s.hops[i], s.hops[i + 1]);
     for (const h of s.hops) nodeEls[h].classList.add("hit");
     setClock(s.t);
-    [...$("blocks").children].forEach((r, i) => r.classList.toggle("on", i < Math.floor(s.t / BLOCK)));
     const row = document.createElement("div"), detail = [s.who, s.pay].filter(Boolean).join(" · ");
     row.innerHTML = `<time>${fmt(s.t)}</time><span></span>`;
     row.querySelector("span").textContent = s.text;
@@ -243,24 +247,23 @@ async function send() {
     $("log").appendChild(row); $("log").scrollTop = 1e6;
     await sleep(500);
   }
-  compare(true);
   busy = false; $("send").disabled = false;
 }
 $("send").onclick = send;
 
-function compare(show) {
+function compare() {
   const t = $("cmp");
   t.innerHTML = "<tr><th></th><th>Delivered</th><th>Price</th><th>Overhead</th><th>Trust</th><th>Who joins</th></tr>";
   for (const k in VARIANTS) {
     const v = VARIANTS[k], r = run(k), tr = document.createElement("tr");
     tr.className = k === variant ? "on" : "";
-    for (const c of [v.name, show ? fmt(r.delivered) : "–", "$" + Math.round(v.price), v.overhead, v.trust, v.join]) {
+    for (const c of [v.name, fmt(r.delivered), "$" + Math.round(v.price), v.overhead, v.trust, v.join]) {
       const td = document.createElement("td"); td.textContent = c; tr.appendChild(td);
     }
     t.appendChild(tr);
   }
 }
-paint(); compare(true);
+paint(); compare();
 </script>
 </body>
 </html>
