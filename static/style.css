@@ -42,6 +42,18 @@ footer { display: flex; gap: calc(2 * var(--u)); font-size: 11px; }
 footer span { flex: 1; }
 footer a { color: var(--dim); text-decoration: none; }
 footer a:hover { color: var(--text); }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--line); }
+.seg button { background: none; border: 0; color: var(--dim); font: inherit; font-size: 12px; padding: 6px 0; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { color: var(--text); background: var(--line); }
+#scenarios { margin-bottom: var(--u); }
+.dim { color: var(--dim); }
+.label .dim { text-transform: none; letter-spacing: 0; margin-left: var(--u); }
+td button { background: none; border: 1px solid var(--line); color: var(--text); font: inherit; font-size: 11px;
+  padding: 1px 8px; cursor: pointer; }
+td button:hover { border-color: var(--dim); }
+#job { margin-top: var(--u); font-size: 12px; min-height: 1.4em; }
+#globe { cursor: crosshair; }
 @media (max-width: 900px) {
   main { grid-template-columns: 1fr; grid-template-rows: 55vh auto; height: auto; }
   aside { border-left: 0; border-top: 1px solid var(--line); }

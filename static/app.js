@@ -146,7 +146,7 @@ const history = [];
 
 async function poll() {
   try {
-    const s = await (await fetch("api/state", { cache: "no-store" })).json();
+    const s = await (await fetch("api/state?mode=" + mode, { cache: "no-store" })).json();
     const now = performance.now();
     if (lastSrv && s.t > lastSrv.t) rate = 0.8 * rate + 0.2 * (s.t - lastSrv.t) / ((now - lastSrv.at) / 1000);
     if (!lastSrv || s.t !== lastSrv.t) lastSrv = { t: s.t, at: now };
@@ -187,6 +187,7 @@ const fade = new Map();   // route id -> alpha, so routes fade in and out instea
 const ARC = 6;           // sub-segments per hop
 const pa = new THREE.Vector3(), pb = new THREE.Vector3(), pc = new THREE.Vector3(), pd = new THREE.Vector3();
 function drawRoutes(dt) {
+  if (highlight && highlight.path) routes = routes.filter((r) => r.id !== "hl").concat([{ id: "hl", path: highlight.path, load: 1 }]);
   const live = new Set(routes.map((r) => r.id));
   for (const r of routes) if (!fade.has(r.id)) fade.set(r.id, 0);
   let k = 0;
@@ -225,39 +226,133 @@ const ghostPaths = new Map();
 // ---- panel ------------------------------------------------------------------------------------------------------
 const fmt = (v) => v == null ? "" : v >= 10 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v >= 0.1 ? v.toFixed(3) : v.toFixed(4);
 const pct = (v) => v == null ? "" : Math.round(v * 100) + "%";
+const usd = (v) => v == null ? "" : "$" + (v >= 100 ? Math.round(v).toLocaleString("en-US") : v.toFixed(2));
+const NAMES = { compute: "Compute", memory: "Memory", storage: "Storage", isl: "Mesh links", downlink: "Downlink" };
+let mode = new URLSearchParams(location.search).get("mode") || "posted";
+
+function seg(el, items, current, onPick) {
+  el.innerHTML = items.map(([k, label]) => `<button data-k="${k}" class="${k === current ? "on" : ""}">${label}</button>`).join("");
+  el.onclick = (e) => { const k = e.target.dataset.k; if (k) onPick(k); };
+}
 
 function renderPanel(s) {
-  $("binding").textContent = RES_LABEL[s.binding] === "Down" ? "Downlink" : { compute: "Compute", memory: "Memory",
-    storage: "Storage", isl: "Mesh links" }[s.binding];
+  seg($("modes"), Object.entries(s.modes).map(([k, m]) => [k, m.label]), mode, (k) => {
+    mode = k; history.length = 0;
+    fetch("api/prices?mode=" + k).then((r) => r.json()).then((h) => history.push(...h.history));
+    poll();
+  });
+  const rs = s.resources, bind = s.modes[mode].binding;
+  $("binding").textContent = NAMES[bind];
   $("pressure").innerHTML = RES.map((r) => {
-    const v = s.global_pressure[r];
+    const v = rs[r].hot, d = rs[r].demand;
     return `<span>${RES_LABEL[r]}</span><div class="bar"><i class="${v > 0.85 ? "hot" : ""}"
       style="width:${Math.min(100, v * 100)}%"></i></div><span class="num">${pct(v)}</span>`;
   }).join("");
 
   const head = `<tr><th>Region</th>${RES.map((r) => `<th title="${RES_UNIT[r]}">${RES_LABEL[r]}</th>`).join("")}</tr>`;
   const rows = s.regions.map((name, i) => `<tr><td>${name}</td>${RES.map((r) => {
-    const p = s.prices[r][i], ratio = p / s.ref[r];
-    const none = r === "downlink" && s.pressure.downlink[i] == null;
-    const col = ratio > 1.5 ? "var(--hot)" : ratio < 0.7 ? "var(--dim)" : "var(--text)";
-    return none ? `<td class="n"></td>` : `<td style="color:${col}">${fmt(p)}</td>`;
+    const p = s.prices[r][i];
+    if (p == null) return `<td class="n" title="no ground station in region">none</td>`;
+    const ratio = p / s.ref[r], col = ratio > 1.5 ? "var(--hot)" : ratio < 0.7 ? "var(--dim)" : "var(--text)";
+    return `<td style="color:${col}">${fmt(p)}</td>`;
   }).join("")}</tr>`).join("");
   $("prices").innerHTML = head + rows;
 
-  const m = s.metrics.market, b = s.metrics.baseline;
-  const row = (label, f, x, y) => `<tr><td>${label}</td><td>${f(x)}</td><td>${f(y)}</td></tr>`;
-  const usd = (v) => "$" + Math.round(v).toLocaleString("en-US");
-  $("compare").innerHTML = `<tr><th></th><th>Market</th><th>Fixed + FIFO</th></tr>`
-    + row("Value served /h", usd, m.value_per_h, b.value_per_h)
-    + row("On time", pct, m.on_time, b.on_time)
-    + row("Compute used", pct, m.compute_util, b.compute_util)
-    + row("Downlink used", pct, m.downlink_util, b.downlink_util)
-    + row("Waiting", (v) => v, m.pending, b.pending);
+  const ms = Object.entries(s.modes);
+  const row = (label, f) => `<tr><td>${label}</td>${ms.map(([k, m]) => `<td class="${k === mode ? "" : "n"}">${f(m)}</td>`).join("")}</tr>`;
+  $("compare").innerHTML = `<tr><th></th>${ms.map(([k, m]) => `<th>${m.label.split(" ")[0]}</th>`).join("")}</tr>`
+    + row("Welfare /h", (m) => usd(m.welfare_per_h)) + row("Served", (m) => pct(m.served))
+    + row("Missed", (m) => pct(m.missed)) + row("p99 ms", (m) => m.p99_latency_ms ?? "")
+    + row("Binding", (m) => RES_LABEL[m.binding]);
 
+  renderScenario(s);
   $("clock").textContent = new Date(s.t * 1000).toISOString().slice(5, 16).replace("T", " ") + " UTC";
   $("counts").textContent = `${N.toLocaleString("en-US")} satellites, ${con ? con.ground_stations.length : ""} stations`;
   drawHistory(s);
 }
+
+// ---- scenarios --------------------------------------------------------------------------------------------------
+let target = { lat: 14.6, lon: 121.0 };   // default: Manila (typhoon belt) until the globe is clicked
+function renderScenario(s) {
+  const sc = s.scenario, cur = sc.event ? "event" : sc.weather !== "off" ? "wx-" + sc.weather : "normal";
+  seg($("scenarios"), [["normal", "Normal"], ["event", "Disaster"], ["wx-raw", "Weather raw"], ["wx-ai", "Weather AI"]],
+    cur, (k) => {
+      const body = k === "event" ? { event: { lat: target.lat, lon: target.lon, hours: 3, name: "disaster" }, weather: "off" }
+        : k === "normal" ? { event: null, weather: "off" } : { event: null, weather: k.slice(3) };
+      fetch("api/scenario", { method: "POST", body: JSON.stringify(body) }).then(poll);
+    });
+  const w = sc.weather_compare, wm = sc.weather_metrics;
+  let html = "";
+  if (cur.startsWith("wx") && w) {
+    html = `<tr><th></th><th>Raw down</th><th>Onboard AI</th></tr>
+      <tr><td>Downlink</td><td>${w.raw.gbps} Gbps</td><td>${w.ai.gbps} Gbps</td></tr>
+      <tr><td>Cost /h</td><td>${usd(w.raw.usd_h)}</td><td>${usd(w.ai.usd_h)}</td></tr>
+      <tr><td>Compute</td><td>0</td><td>${w.ai.units.toLocaleString("en-US")} units</td></tr>`
+      + (wm ? `<tr><td>Delivered now</td><td colspan="2">${wm.down_gbps} Gbps, backlog ${Math.round(wm.backlog_gb).toLocaleString("en-US")} GB</td></tr>` : "");
+  } else if (sc.event) {
+    html = `<tr><td>Event</td><td>${sc.event.lat.toFixed(1)}, ${sc.event.lon.toFixed(1)}</td></tr>
+      <tr><td>Ends</td><td>${new Date(sc.event.until * 1000).toISOString().slice(11, 16)} UTC</td></tr>`;
+  }
+  $("scenario").innerHTML = html;
+}
+
+// ---- image of a location: click the globe, get a quote per urgency, simulate one -------------------------------
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+const marker = new THREE.Mesh(new THREE.RingGeometry(0.012, 0.018, 32),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }));
+earth.add(marker);
+let down = null;
+renderer.domElement.addEventListener("pointerdown", (e) => { down = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener("pointerup", (e) => {
+  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 4) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  mouse.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObject(earth.children[0])[0];
+  if (!hit) return;
+  const p = earth.worldToLocal(hit.point.clone()).normalize();
+  setTarget(Math.asin(p.y) * 180 / Math.PI, Math.atan2(-p.z, p.x) * 180 / Math.PI);
+});
+
+function setTarget(lat, lon) {
+  target = { lat, lon };
+  const [x, y, z] = llToLocal(lat, lon, 1.002);
+  marker.position.set(x, y, z); marker.lookAt(x * 2, y * 2, z * 2);
+  $("target").textContent = `${lat.toFixed(1)}, ${lon.toFixed(1)}`;
+  $("quote").innerHTML = `<tr><td class="n">pricing passes...</td></tr>`;
+  fetch(`api/quote?lat=${lat}&lon=${lon}`).then((r) => r.json()).then(renderQuote);
+}
+
+const WITHIN = { 60: "1 min", 900: "15 min", 3600: "1 h", 21600: "6 h", 86400: "24 h" };
+function renderQuote(q) {
+  $("quote").innerHTML = `<tr><th>Within</th><th>Price</th><th>Pass</th><th></th></tr>` + q.options.map((o) =>
+    o.price_usd == null ? `<tr><td>${WITHIN[o.within_s]}</td><td class="n" colspan="3">no pass</td></tr>`
+      : `<tr><td>${WITHIN[o.within_s]}</td><td>${usd(o.price_usd)}</td><td>${Math.round((o.pass_t - q.t) / 60)} min</td>
+         <td><button data-w="${o.within_s}">Simulate</button></td></tr>`).join("");
+  $("quote").onclick = (e) => {
+    const w = e.target.dataset.w;
+    if (!w) return;
+    fetch("api/jobs", { method: "POST", body: JSON.stringify({ image: target, deadline_s: +w }) })
+      .then((r) => r.json()).then(track);
+  };
+}
+
+let tracked = null;
+function track(j) {
+  if (j.error) { $("job").textContent = j.error; return; }
+  tracked = j.id;
+  const tick = () => fetch("api/jobs/" + tracked).then((r) => r.json()).then((s) => {
+    const p = s.placed;
+    const when = (t) => new Date(t * 1000).toISOString().slice(11, 16);
+    $("job").textContent = s.status === "waiting" ? `quoted ${usd(s.quote_usd)}, waiting for the pass`
+      : s.status === "running" ? `on satellite ${p.sat}, ${usd(p.price)}`
+      : `${s.status === "done" ? "delivered" : "missed"} by ${when(s.deadline)} UTC, sat ${p ? p.sat : "-"}, ${usd(p && p.price)}`;
+    highlight = p ? { sat: p.sat, path: p.path } : null;
+    if (s.status === "waiting" || s.status === "running") setTimeout(tick, 2000);
+  });
+  tick();
+}
+let highlight = null;
 
 const sparks = {};
 function drawHistory(s) {
@@ -317,8 +412,9 @@ function frame() {
 (async () => {
   resize();
   await loadConstellation();
-  const h = await (await fetch("api/prices")).json();
+  const h = await (await fetch("api/prices?mode=" + mode)).json();
   history.push(...h.history);
+  setTarget(target.lat, target.lon);
   await poll();
   setInterval(poll, 1000);
   frame();

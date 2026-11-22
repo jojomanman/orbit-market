@@ -16,71 +16,127 @@ import math
 import os
 import threading
 import time
+from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import numpy as np
 
-from sim.market import CLEARING, REF, RES, Demand, Engine, ref_cost
-from sim.orbit import REGIONS, Constellation, Geometry, gmst
+from sim.market import (IMAGER_KM, MODES, REF, RES, WEATHER_AI_RATIO, WEATHER_AI_UNITS, WEATHER_RAW_MBPS, Demand,
+                        Engine, ref_cost, sun_elevation_sin)
+from sim.customers import Customers
+from sim.orbit import REGIONS, Constellation, Geometry, gmst, passes, region_of, sun_vector
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 STATIC = os.path.join(ROOT, "static")
 TICK_SIM_S = 60
-TICK_WALL_S = 1.0
+TICK_WALL_S = 2.0
 HISTORY = 24 * 60   # ticks of price history kept (one simulated day)
 MAX_API_JOBS = 5000
+URGENCIES = [60, 900, 3600, 6 * 3600, 86400]
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css",
-         ".json": "application/json", ".svg": "image/svg+xml"}
+         ".json": "application/json", ".svg": "image/svg+xml", ".jpg": "image/jpeg"}
 
 
 class Sim:
-    def __init__(self, warmup_hours):
+    def __init__(self, warmup_hours, demand):
         self.lock = threading.Lock()
         self.t = time.time() - warmup_hours * 3600
         self.con = Constellation(self.t)
-        self.demand = Demand(json.load(open(os.path.join(STATIC, "land.json"))))
-        self.engines = {k: Engine(self.con, CLEARING[k]()) for k in ("market", "baseline")}
+        land = json.load(open(os.path.join(STATIC, "land.json")))
+        self.demand = Demand(land)
+        self.customers = Customers(os.path.join(ROOT, "data", "customers"), land, self.demand.rng) \
+            if demand == "customers" else None
+        self.engines = {k: Engine(self.con, k) for k in MODES}
         self.injected = []
         self.api_jobs = {}
-        self.history = []
-        self.snapshot = b"{}"
+        self.history = {k: [] for k in MODES}
+        self.region_hist = deque(maxlen=HISTORY)   # (t, compute by region, downlink by region) of the posted mode
+        self.snapshots = {}
+        self.geo = None
+        self.weather = "off"
         self.constellation = json.dumps(self.con.static_json()).encode()
+        self.imagers = np.nonzero(np.isin(self.con.shell, (2, 3)))[0]
         for _ in range(int(warmup_hours * 3600 / TICK_SIM_S)):
             self.step()
 
     def step(self):
         geo = Geometry(self.con, self.t)
-        arrivals = self.demand.arrivals(self.t, TICK_SIM_S, geo.sun, gmst(self.t))
+        if self.customers is None:
+            arrivals = self.demand.arrivals(self.t, TICK_SIM_S, geo.sun, gmst(self.t))
+        else:
+            if int(self.t) % 600 < TICK_SIM_S:
+                self.customers.reload()
+            ev = self.demand.event if self.demand.event and self.t < self.demand.event["until"] else None
+            arrivals = self.customers.arrivals(self.t, TICK_SIM_S, ev, self.price_index(), self.demand._poisson)
+            for j in arrivals:
+                j["id"] = self.demand.next_id
+                j["ref_cost"] = ref_cost(j)
+                self.demand.next_id += 1
         with self.lock:
             arrivals += self.injected
             self.injected = []
+        # The posted engine keeps the originals so API jobs can be looked up; the others get untouched copies.
+        copies = {k: copy.deepcopy(arrivals) for k in self.engines if k != "posted"}
         for k, eng in self.engines.items():
-            # The market keeps the originals so API jobs can be looked up; the baseline gets copies.
-            eng.tick(geo, TICK_SIM_S, arrivals if k == "market" else copy.deepcopy(arrivals))
+            eng.weather = self.weather
+            eng.tick(geo, TICK_SIM_S, copies.get(k, arrivals))
+        if self.customers is not None:
+            p = self.engines["posted"]
+            self.customers.record(p.cust_done, p.cust_paid)
         self.t += TICK_SIM_S
+        self.geo = geo
         self._snapshot(geo)
 
     def _snapshot(self, geo):
-        m, b = self.engines["market"], self.engines["baseline"]
-        gp = m.global_pressure()
-        prices = {r: [round(float(x), 4) for x in m.clear.p[r]] for r in RES}
-        self.history.append({"t": self.t, **{r: round(float(np.median(m.clear.p[r])), 4) for r in RES}})
-        del self.history[:-HISTORY]
-        util = np.clip(np.minimum(m.units_used, m.cap_units) / m.fleet.units, 0, 1)
-        flags = (util * 127).astype(np.uint8) | np.where(geo.sunlit, 0, 128).astype(np.uint8)
-        flows = sorted(m.flows, key=lambda f: -f.get("rate", 0))[:80]
-        snap = {
-            "t": self.t, "speed": TICK_SIM_S / TICK_WALL_S, "gmst": gmst(self.t), "sun": geo.sun.round(5).tolist(),
-            "regions": REGIONS, "ref": REF, "prices": prices,
-            "pressure": {r: [None if not math.isfinite(x) else round(float(x), 3) for x in m.pressure[r]] for r in RES},
-            "global_pressure": gp, "binding": max(gp, key=gp.get), "limits": m.binding,
-            "metrics": {"market": m.metrics(), "baseline": b.metrics()},
-            "sats": base64.b64encode(flags.tobytes()).decode(),
-            "routes": [{"id": f["job"]["id"], "path": f["path"], "load": round(f.get("load", 0), 2)}
-                       for f in flows if f.get("path") and f.get("rate", 0) > 0],
-            "history": self.history[-1],
-        }
-        self.snapshot = json.dumps(snap).encode()
+        modes = {k: {"label": e.mode.label, **e.metrics()} for k, e in self.engines.items()}
+        ev = self.demand.event
+        common = {"t": self.t, "speed": TICK_SIM_S / TICK_WALL_S, "gmst": gmst(self.t),
+                  "sun": geo.sun.round(5).tolist(), "regions": REGIONS, "ref": REF, "modes": modes,
+                  "scenario": {"event": ev if ev and self.t < ev["until"] else None, "weather": self.weather,
+                               "weather_metrics": self.engines["posted"].weather_metrics(),
+                               "weather_compare": self.weather_compare()}}
+        for k, e in self.engines.items():
+            rp = e.region_prices(geo)
+            if k == "posted":
+                self.region_hist.append((self.t, rp["compute"], rp["downlink"]))
+            h = {"t": self.t, **{r: _median([x for x in rp[r] if x is not None]) for r in RES}}
+            self.history[k].append(h)
+            del self.history[k][:-HISTORY]
+            util = np.clip(np.minimum(e.units_used, e.cap_units) / e.fleet.units, 0, 1)
+            flags = (util * 127).astype(np.uint8) | np.where(geo.sunlit, 0, 128).astype(np.uint8)
+            flows = sorted((f for f in e.flows if f.get("path") and f.get("rate", 0) > 0),
+                           key=lambda f: -f["rate"])[:60]
+            snap = {**common, "mode": k, "prices": rp, "resources": e.resource_state(),
+                    "sats": base64.b64encode(flags.tobytes()).decode(),
+                    "routes": [{"id": f["job"]["id"], "path": f["path"], "load": round(f.get("load", 0), 2)}
+                               for f in flows],
+                    "history": h}
+            self.snapshots[k] = json.dumps(snap, default=_np).encode()
+
+    def price_index(self):
+        """Posted compute and downlink prices vs anchor, geometric mean: what elastic customers react to."""
+        e = self.engines["posted"]
+        if e.pr is None:
+            return 1.0
+        return math.sqrt(float(np.median(e.pr.cpu)) / REF["compute"] * (float(np.median(e.pr.gs)) + float(np.median(e.pr.dl))) /
+                         REF["downlink"])
+
+    def weather_compare(self):
+        """Raw stream vs onboard AI for the weather fleet at this tick's posted prices: bandwidth and cost per hour."""
+        e = self.engines["posted"]
+        if e.pr is None:
+            return None
+        n = len(e.wx_sats)
+        raw_gbps = n * WEATHER_RAW_MBPS / 1000
+        ground = e.net.ground_cost[e.wx_sats]
+        p_dl = float(np.median(ground[np.isfinite(ground)])) if np.isfinite(ground).any() else REF["downlink"]
+        p_cpu = float(np.median(e.pr.cpu[e.wx_sats]))
+        gb_h = raw_gbps / 8 * 3600
+        return {"raw": {"gbps": round(raw_gbps, 1), "usd_h": round(gb_h * p_dl)},
+                "ai": {"gbps": round(raw_gbps / WEATHER_AI_RATIO, 2),
+                       "usd_h": round(gb_h / WEATHER_AI_RATIO * p_dl + n * WEATHER_AI_UNITS * p_cpu),
+                       "units": n * WEATHER_AI_UNITS},
+                "saved": round(1 - 1 / WEATHER_AI_RATIO, 3)}
 
     def run(self):
         while True:
@@ -89,7 +145,7 @@ class Sim:
             time.sleep(max(0.0, TICK_WALL_S - (time.monotonic() - start)))
 
     def submit(self, req):
-        job = parse_job(req, self.t)
+        job = parse_job(req, self.t) if "image" not in req else self.image_job(req)
         with self.lock:
             if len(self.api_jobs) >= MAX_API_JOBS:
                 self.api_jobs.pop(next(iter(self.api_jobs)))
@@ -99,8 +155,78 @@ class Sim:
             self.api_jobs[job["id"]] = job
         return job
 
+    # -- use case: an image of a location -------------------------------------------------------------------------
+    def quote(self, lat, lon):
+        """Price of 'an image of this point, delivered within W' for each urgency W.
+
+        Options are real passes of the imaging satellites (S3 radar, S4 optical which needs the sun up). An option
+        within 15 min pays today's prices in the target's region; a later one is priced at the seasonal-naive
+        forecast (the same region, same hour yesterday), so waiting can buy a quieter hour. Cheapest option wins."""
+        now = self.t
+        opts = passes(self.con, self.imagers, now, lat, lon, max(URGENCIES), IMAGER_KM, step_s=30)
+        region = int(region_of_point(lat, lon))
+        e = self.engines["posted"]
+        out = []
+        for w in URGENCIES:
+            best = None
+            for tp, sat in opts:
+                if tp + IMAGE_PROC_S > now + w:
+                    break
+                if self.con.shell[sat] == 3 and sun_elev_sin(tp, lat, lon) < 0.17:
+                    continue
+                cpu, dl = self.forecast(region, tp)
+                price = IMAGE_UNITS * IMAGE_PROC_S / 3600 * cpu + IMAGE_OUT_GB * dl + IMAGE_RAW_GB / 1000 * 0.5 \
+                    * float(np.median(e.pr.sto))
+                if best is None or price < best["price_usd"]:
+                    best = {"price_usd": round(price, 2), "pass_t": tp, "sat": sat,
+                            "delivery_s": round(tp - now + IMAGE_PROC_S + 2)}
+            out.append({"within_s": w, **(best or {"price_usd": None})})
+        return {"lat": lat, "lon": lon, "region": REGIONS[region], "t": now, "options": out}
+
+    def forecast(self, region, tp):
+        hist = self.region_hist
+        if not hist or tp - self.t <= 900:
+            cur = hist[-1] if hist else None
+        else:
+            target = tp - 86400
+            cur = min(hist, key=lambda h: abs(h[0] - target)) if hist[0][0] <= target + 1800 else hist[-1]
+        cpu = cur[1][region] if cur and cur[1][region] is not None else REF["compute"]
+        dls = [x for x in cur[2] if x is not None] if cur else []
+        return cpu, (min(dls) if dls else REF["downlink"])
+
+    def image_job(self, req):
+        p = _point(req, "image")
+        deadline = _num(req, "deadline_s", 60, 86400)
+        q = self.quote(*p)
+        opt = next((o for o in q["options"] if o["within_s"] >= deadline and o["price_usd"] is not None), None)
+        if opt is None:
+            raise ValueError("no pass over that point within the deadline")
+        value = _num(req, "max_price_usd", 0, 1e7, default=opt["price_usd"] * 1.5)
+        job = dict(kind="image", units=IMAGE_UNITS, mem=4 * IMAGE_UNITS, storage_gb=IMAGE_RAW_GB,
+                   duration=IMAGE_PROC_S, out_gb=IMAGE_OUT_GB, location=p, sat=opt["sat"],
+                   start_after=opt["pass_t"], arrival=self.t, deadline=self.t + deadline, value=value,
+                   quote_usd=opt["price_usd"])
+        job["ref_cost"] = ref_cost(job)
+        return job
+
+    def set_scenario(self, req):
+        if "event" in req:
+            ev = req["event"]
+            if ev is None:
+                self.demand.event = None
+            else:
+                lat, lon = _point({"p": ev}, "p")
+                hours = _num(ev, "hours", 0.5, 24, 3)
+                self.demand.event = {"lat": lat, "lon": lon, "until": self.t + hours * 3600,
+                                     "name": str(ev.get("name", "event"))[:40]}
+        if "weather" in req:
+            if req["weather"] not in ("off", "raw", "ai"):
+                raise ValueError("weather must be off, raw or ai")
+            self.weather = req["weather"]
+        return {"event": self.demand.event, "weather": self.weather}
+
     def sats_summary(self):
-        m = self.engines["market"]
+        m = self.engines["posted"]
         out = {}
         for o in sorted(set(self.con.owner.tolist())):
             mask = self.con.owner == o
@@ -108,6 +234,27 @@ class Sim:
                       "units_in_use": round(float(m.units_used[mask].sum())),
                       "classes": {c: int((mask & (self.con.cls == c)).sum()) for c in "SML"}}
         return {"total": self.con.n_sats, "owners": out, "shells": json.loads(self.constellation)["shells"]}
+
+
+IMAGE_UNITS, IMAGE_PROC_S, IMAGE_RAW_GB, IMAGE_OUT_GB = 16, 120, 20.0, 0.5
+
+
+def region_of_point(lat, lon):
+    return region_of(np.array([lat]), np.array([lon]))[0]
+
+
+def sun_elev_sin(t, lat, lon):
+    return sun_elevation_sin(sun_vector(t), gmst(t), lat, lon)
+
+
+def _median(xs):
+    return round(float(np.median(xs)), 5) if xs else None
+
+
+def _np(o):
+    if isinstance(o, np.generic):
+        return o.item()
+    raise TypeError(type(o))
 
 
 def _num(d, key, lo, hi, default=None):
@@ -174,6 +321,8 @@ def job_view(job):
            "quote_at_anchor_usd": round(job["ref_cost"], 4)}
     if "placed" in job:
         out["placed"] = job["placed"]
+    if "quote_usd" in job:
+        out["quote_usd"] = job["quote_usd"]
     if "result" in job:
         out["status"] = "done" if job["result"]["on_time"] else "missed"
     else:
@@ -201,22 +350,35 @@ class Handler(BaseHTTPRequestHandler):
         self._send(code, json.dumps(obj).encode())
 
     def do_GET(self):
-        path = self.path.split("?")[0]
+        path, _, qs = self.path.partition("?")
+        q = dict(x.split("=", 1) for x in qs.split("&") if "=" in x)
         sim = self.sim
+        mode = q.get("mode", "posted") if q.get("mode") in MODES else "posted"
         if path == "/api/state":
-            return self._send(200, sim.snapshot)
+            return self._send(200, sim.snapshots.get(mode, b"{}"))
         if path == "/api/constellation":
             return self._send(200, sim.constellation)
         if path == "/api/prices":
-            m = sim.engines["market"]
-            return self._json(200, {"t": sim.t, "units": {"compute": "$/unit-h", "memory": "$/GB-h",
-                                                         "storage": "$/TB-h", "isl": "$/GB per hop",
-                                                         "downlink": "$/GB"},
-                                    "regions": REGIONS,
-                                    "prices": {r: [round(float(x), 4) for x in m.clear.p[r]] for r in RES},
-                                    "history": sim.history})
+            e = sim.engines[mode]
+            return self._json(200, {"t": sim.t, "mode": mode, "units": {
+                "compute": "$/unit-h", "memory": "$/GB-h", "storage": "$/TB-h", "isl": "$/GB per hop",
+                "downlink": "$/GB"}, "regions": REGIONS, "prices": e.region_prices(sim.geo),
+                "history": sim.history[mode]})
         if path == "/api/sats":
             return self._json(200, sim.sats_summary())
+        if path == "/api/scenario":
+            return self._json(200, {"event": sim.demand.event, "weather": sim.weather})
+        if path == "/api/customers":
+            c = sim.customers
+            return self._json(200, {"customers": c.table() if c else [], "problems": c.problems if c else []})
+        if path == "/api/quote":
+            try:
+                lat, lon = float(q.get("lat", "x")), float(q.get("lon", "x"))
+                if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                    raise ValueError
+            except ValueError:
+                return self._json(400, {"error": "lat in [-90, 90] and lon in [-180, 180] required"})
+            return self._json(200, sim.quote(lat, lon))
         if path.startswith("/api/jobs/"):
             job = sim.api_jobs.get(path.rsplit("/", 1)[1])
             return self._json(200, job_view(job)) if job else self._json(404, {"error": "unknown job"})
@@ -229,13 +391,19 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, f.read(), TYPES.get(os.path.splitext(full)[1], "application/octet-stream"))
 
     def do_POST(self):
-        if self.path.split("?")[0] != "/api/jobs":
+        path = self.path.split("?")[0]
+        if path not in ("/api/jobs", "/api/scenario"):
             return self._json(404, {"error": "not found"})
         n = int(self.headers.get("Content-Length") or 0)
         if n <= 0 or n > 16384:
             return self._json(400, {"error": "body must be 1..16384 bytes of JSON"})
         try:
-            job = self.sim.submit(json.loads(self.rfile.read(n)))
+            req = json.loads(self.rfile.read(n))
+            if not isinstance(req, dict):
+                raise ValueError("body must be a JSON object")
+            if path == "/api/scenario":
+                return self._json(200, self.sim.set_scenario(req))
+            job = self.sim.submit(req)
         except (ValueError, json.JSONDecodeError) as e:
             return self._json(400, {"error": str(e)})
         self._json(202, job_view(job))
@@ -245,8 +413,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8510)
     ap.add_argument("--warmup-hours", type=float, default=6)
+    ap.add_argument("--demand", choices=["customers", "synthetic"], default="customers")
     a = ap.parse_args()
-    Handler.sim = Sim(a.warmup_hours)
+    Handler.sim = Sim(a.warmup_hours, a.demand)
     threading.Thread(target=Handler.sim.run, daemon=True).start()
     ThreadingHTTPServer(("127.0.0.1", a.port), Handler).serve_forever()
 

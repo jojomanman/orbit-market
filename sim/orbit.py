@@ -207,3 +207,27 @@ class Geometry:
         la, lo = math.radians(lat), math.radians(lon)
         p = np.array([math.cos(la) * math.cos(lo), math.cos(la) * math.sin(lo), math.sin(la)])
         return np.nonzero(self.unit @ p > math.cos(radius_km / RE))[0]
+
+
+def passes(con, sats, t0, lat, lon, horizon_s, reach_km, step_s=30):
+    """(time, satellite) of the first sample of every pass of `sats` within reach_km of a ground point, by time.
+
+    Brute force over a time grid: 24 h x 1,200 imaging satellites is ~3.5M positions, well under a second."""
+    times = t0 + np.arange(0, horizon_s, step_s)
+    la, lo = math.radians(lat), math.radians(lon)
+    out = []
+    cos_reach = math.cos(reach_km / RE)
+    a, inc, raan0, u0 = con.a[sats], con.inc[sats], con.raan0[sats], con.u0[sats]
+    n, rd = con.shell_n[sats], con.shell_raan_dot[sats]
+    was = np.zeros(len(sats), bool)
+    for t in times:
+        dt = t - con.epoch
+        raan = raan0 + rd * dt - gmst(t)
+        u = u0 + n * dt
+        cu, su, cr, sr, ci, si = np.cos(u), np.sin(u), np.cos(raan), np.sin(raan), np.cos(inc), np.sin(inc)
+        x, y, z = cr * cu - sr * su * ci, sr * cu + cr * su * ci, su * si
+        near = (x * math.cos(la) * math.cos(lo) + y * math.cos(la) * math.sin(lo) + z * math.sin(la)) > cos_reach
+        for i in np.nonzero(near & ~was)[0]:
+            out.append((float(t), int(sats[i])))
+        was = near
+    return out

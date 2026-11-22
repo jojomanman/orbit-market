@@ -352,6 +352,7 @@ class Engine:
         self.wx_stats = deque()   # (t, raw GB made, GB delivered, $ paid)
         self.wx_sats = np.nonzero(np.isin(con.shell, WEATHER_SHELLS))[0]
         self.reserve_base = np.array([OWNER_MARKUP[o] for o in con.owner]) * 0.45
+        self.cust_done, self.cust_paid = [], []   # this tick, for per-customer stats
 
     def _zero_unmet(self):
         n, e, g = self.con.n_sats, len(self.con.isl_u), len(self.con.gs_lat)
@@ -394,6 +395,7 @@ class Engine:
         for j in arrivals:
             self.mode.observe(j)
         self.pending.extend(arrivals)
+        self.cust_done, self.cust_paid = [], []
         self.unmet = self._zero_unmet()
         self._weather(now, dt)
         self._clear_pending(geo, now, dt, reserve)
@@ -431,6 +433,8 @@ class Engine:
         on_time = ok and now <= job["deadline"] + 1
         job["result"] = {"t": now, "on_time": on_time}
         self.done.append((now, job["value"], on_time, job["kind"], job.get("customer")))
+        if job.get("customer"):
+            self.cust_done.append((job["customer"], on_time))
 
     def _weather(self, now, dt):
         """Weather satellites make raw data every tick; raw goes down as is, 'ai' shrinks it onboard first."""
@@ -523,7 +527,7 @@ class Engine:
                 job["crit"] = 0.0
                 winners.append((job, s))
             else:
-                self.paid.append((now, price))
+                self._pay(job, now, price)
             free_u[s] -= job["units"]
             free_m[s] -= job["mem"]
             free_s[s] -= job["storage_gb"]
@@ -541,8 +545,13 @@ class Engine:
         for job, s in winners:
             pay = max(job["crit"], L_MULT * job["ref_cost"])
             job["placed"]["price"] = round(pay, 4)
-            self.paid.append((now, pay))
+            self._pay(job, now, pay)
         self.pending = keep
+
+    def _pay(self, job, now, usd):
+        self.paid.append((now, usd))
+        if job.get("customer"):
+            self.cust_paid.append((job["customer"], usd))
 
     @staticmethod
     def _displaced(job, winners, cand):
@@ -574,7 +583,7 @@ class Engine:
         if self.net.residual(path) < job["gbps"]:
             self.net.blame(path, job["gbps"], self.unmet)
             return False
-        self.paid.append((now, price))
+        self._pay(job, now, price)
         self.lat_ms.append((now, lat_ms))
         job["placed"] = {"sat": sa, "price": round(price, 4), "t": now, "latency_ms": round(lat_ms, 1)}
         self.flows.append(dict(job=job, sat=sa, dst=sb, gb_left=job["out_gb"], hold_gb=0, start=now))
@@ -603,6 +612,8 @@ class Engine:
                     self.net.take(path, got)
                 f["path"] = path
                 f["load"] = self.net.bottleneck_util(path)
+                if "placed" in job and job["kind"] in ("image", "api"):
+                    job["placed"]["path"] = path
                 if got < need:
                     self.net.blame(path, need - got, self.unmet)
             f["rate"] = got
