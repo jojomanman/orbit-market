@@ -11,6 +11,8 @@ Usage: server.py [--port 8510] [--warmup-hours 6]
 import argparse
 import base64
 import copy
+import gzip
+import hashlib
 import json
 import math
 import os
@@ -39,6 +41,24 @@ FIBRE_KM_S = C_KM_S / 1.47  # light in glass: station to customer goes terrestri
 URGENCIES = [60, 900, 3600, 6 * 3600, 86400]
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css",
          ".json": "application/json", ".svg": "image/svg+xml", ".jpg": "image/jpeg"}
+GZIP_TYPES = ("text/", "application/json", "image/svg+xml")
+GZ_CACHE = {}   # (static path, mtime) -> gzip bytes, compressed once per edit instead of per request
+
+
+def static_version():
+    """Changes with any static file, so index.html references assets as name?v=... and the browser keeps them for a
+    year (Jonas 15:47 "it seems to load quite long at some times": 1.5 MB of three.js and textures was re-fetched
+    every 5 minutes). Stat per index request, so edits need no restart."""
+    h = hashlib.sha1()
+    for d, _, fs in sorted(os.walk(STATIC)):
+        for f in sorted(fs):
+            st = os.stat(os.path.join(d, f))
+            h.update(f"{d}/{f}:{st.st_mtime_ns}:{st.st_size}".encode())
+    return h.hexdigest()[:10]
+
+
+def view_id(j):
+    return f"0x{abs(hash((j['id'], j['arrival']))) & 0xffffffffffff:012x}"
 
 
 class Sim:
@@ -60,6 +80,7 @@ class Sim:
         self.weather = "off"
         self.constellation = json.dumps(self.con.static_json()).encode()
         self.featured = None
+        self.featured_log = {}   # view id -> job, every job featured so far: a viewer follows its own, not the shared one
         self.board_view = {}
         self.flows_view = {}
         self.gs_names = [g["name"] for g in self.con.static_json()["ground_stations"]]
@@ -187,6 +208,10 @@ class Sim:
             if j.get("placed"):
                 j["plan"] = self.plan_route(e, j)
         self.featured = min(cands, key=fit) if cands else None
+        if self.featured is not None:
+            self.featured_log[view_id(self.featured)] = self.featured
+            while len(self.featured_log) > 50:
+                del self.featured_log[next(iter(self.featured_log))]
         return self.featured_view()
 
     def plan_route(self, e, j):
@@ -275,9 +300,9 @@ class Sim:
         return {"t": t_up, "legs": legs, "compute_at": at, "compute": compute,
                 "downlink_s": round(j["out_gb"] * 8 / ph.DOWNLINK_GBPS, 1)}
 
-    def featured_view(self):
-        """The featured job as a transaction: request, quotes, route with owners, timings, settlement."""
-        j = self.featured
+    def featured_view(self, j=None):
+        """A featured job (default the shared one) as a transaction: request, quotes, route with owners, timings, settlement."""
+        j = self.featured if j is None else j
         if j is None:
             return {"job": None}
         org = next((o for o in self.customers.orgs if o["id"] == j.get("customer")), None) if self.customers else None
@@ -288,7 +313,7 @@ class Sim:
         station = next((self.gs_names[x - n] for x in path if x >= n), None)
         status = ("delivered" if j["result"]["on_time"] else "failed") if "result" in j else \
             "downlink" if "down_t" in j else "compute" if "placed" in j else "pending"
-        out = {"id": f"0x{abs(hash((j['id'], j['arrival']))) & 0xffffffffffff:012x}", "status": status,
+        out = {"id": view_id(j), "status": status,
                "why": org["name"] if org else "API", "what": org["what"][:120] if org else "",
                "type": j.get("ctype", j["kind"]).replace("_", " "),
                "region": REGIONS[int(region_of_point(*j["location"]))] if j.get("location") else None, "loc": j.get("location"),
@@ -590,11 +615,19 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
-    def _send(self, code, body, ctype="application/json"):
+    def _send(self, code, body, ctype="application/json", cache="no-store", gz=None):
+        """Text and JSON go gzipped when the browser accepts it (Funnel does not compress): gz is the ready
+        compression of a static file; a 20 KB tick is compressed per request in about a millisecond."""
+        enc = len(body) > 1024 and ctype.startswith(GZIP_TYPES) and "gzip" in self.headers.get("Accept-Encoding", "")
+        if enc:
+            body = gz if gz is not None else gzip.compress(body, 5)
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store" if ctype == "application/json" else "max-age=300")
+        self.send_header("Cache-Control", cache)
+        self.send_header("Vary", "Accept-Encoding")
+        if enc:
+            self.send_header("Content-Encoding", "gzip")
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(body)
@@ -620,7 +653,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/sats":
             return self._json(200, sim.sats_summary())
         if path == "/api/featured":
-            return self._json(200, sim.featured_view() if q.get("next") is None and sim.featured else sim.next_featured())
+            if q.get("next") is not None or not sim.featured:
+                return self._json(200, sim.next_featured())
+            return self._json(200, sim.featured_view(sim.featured_log.get(q.get("id"))))
         if path == "/api/board":
             return self._json(200, sim.board_view)
         if path == "/api/flows":
@@ -655,7 +690,16 @@ class Handler(BaseHTTPRequestHandler):
         if not full.startswith(STATIC + os.sep) or not os.path.isfile(full):
             return self._json(404, {"error": "not found"})
         with open(full, "rb") as f:
-            self._send(200, f.read(), TYPES.get(os.path.splitext(full)[1], "application/octet-stream"))
+            body = f.read()
+        ctype = TYPES.get(os.path.splitext(full)[1], "application/octet-stream")
+        if full == os.path.join(STATIC, "index.html"):
+            return self._send(200, body.replace(b"{{v}}", static_version().encode()), ctype, "no-cache")
+        key = (full, os.stat(full).st_mtime_ns)
+        if key not in GZ_CACHE and ctype.startswith(GZIP_TYPES):
+            if len(GZ_CACHE) > 100:
+                GZ_CACHE.clear()
+            GZ_CACHE[key] = gzip.compress(body, 9)
+        self._send(200, body, ctype, "max-age=31536000, immutable" if "v" in q else "max-age=300", GZ_CACHE.get(key))
 
     def do_POST(self):
         path = self.path.split("?")[0]

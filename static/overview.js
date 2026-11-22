@@ -117,7 +117,11 @@ export function createOverview({ scene, earth, nodePos, llToLocal, satCount, sta
   const ringM = new THREE.Matrix4(), ringQ = new THREE.Quaternion(), ringN = new THREE.Vector3(), ringS = new THREE.Vector3();
   const ringC = new THREE.Color();
   const poly = [];   // reused polyline of the current route
-  for (let i = 0; i < 64; i++) poly.push(new THREE.Vector3());
+  for (let i = 0; i < 512; i++) poly.push(new THREE.Vector3());
+  const dv = new THREE.Vector3();
+  // The station sees the satellite (elevation above 5 degrees). A job's upload station is fixed at match time; an
+  // hour into the run the satellite is behind the Earth and the beam must not be drawn through it.
+  const above = (g, s) => { dv.subVectors(s, g); return dv.dot(g) > 0.087 * dv.length() * g.length(); };
   // Real elapsed time x playback speed, so pings and packets keep their pace at any frame rate.
   let lastNow = performance.now();
   function frame(play) {
@@ -144,8 +148,7 @@ export function createOverview({ scene, earth, nodePos, llToLocal, satCount, sta
       load.set(s, (load.get(s) || 0) + 1);
       nodePos(s, b);
       const col = COL[y], ph = (s * 0.618) % 1;
-      if (g >= 0) {
-        nodePos(g, a);
+      if (g >= 0 && above(nodePos(g, a), b)) {
         const flash = 0.5 + 0.5 * Math.sin((clock * 1.3 + ph) * Math.PI * 2);
         seg(a, b, col, 0.05 + 0.07 * flash * (1 - prog));
         const u = (clock * 0.45 + ph) % 1;
@@ -154,23 +157,29 @@ export function createOverview({ scene, earth, nodePos, llToLocal, satCount, sta
     }
     for (const [s, n] of load) dot(nodePos(s, b), COL[1], 10 + 6 * Math.sqrt(n), Math.min(0.5, 0.12 + 0.08 * n));
 
-    // Transfers: one arc per route (ground legs straight, the mesh part as a great circle), packets along it at a
-    // speed set by the flow's data rate.
+    // Transfers: the route hop by hop through the satellites it really uses, each mesh hop an arc at altitude and
+    // the ground legs straight while the station sees the satellite. One great circle from the first to the last
+    // satellite was drawn before, which cut through the Earth (Jonas 15:45 "communicating through the earth").
     for (const [path, gbps, y] of feed.flows) {
       const sats = path.filter((id) => id < N);
       if (!sats.length) continue;
       let m = 0;
-      if (path[0] >= N) nodePos(path[0], poly[m++]);
-      nodePos(sats[0], a); nodePos(sats[sats.length - 1], b);
-      ua.copy(a).normalize(); ub.copy(b).normalize();
-      const ang = ua.angleTo(ub), st = Math.min(40, Math.max(1, Math.ceil(ang * 180 / Math.PI / ARC_DEG))), sn = Math.sin(ang);
-      for (let i = 0; i <= st; i++) {
-        const t = i / st;
-        poly[m++].copy(ua).multiplyScalar(sn > 1e-6 ? Math.sin((1 - t) * ang) / sn : 1 - t)
-          .addScaledVector(ub, sn > 1e-6 ? Math.sin(t * ang) / sn : t)
-          .multiplyScalar(a.length() + (b.length() - a.length()) * t + 0.03 * ang * Math.sin(Math.PI * t));
+      nodePos(sats[0], a);
+      if (path[0] >= N && above(nodePos(path[0], c), a)) poly[m++].copy(c);
+      poly[m++].copy(a);
+      for (let h = 1; h < sats.length && m < poly.length - 20; h++) {
+        nodePos(sats[h], b);
+        ua.copy(a).normalize(); ub.copy(b).normalize();
+        const ang = ua.angleTo(ub), st = Math.min(16, Math.max(1, Math.ceil(ang * 180 / Math.PI / ARC_DEG))), sn = Math.sin(ang);
+        for (let i = 1; i <= st; i++) {
+          const t = i / st;
+          poly[m++].copy(ua).multiplyScalar(sn > 1e-6 ? Math.sin((1 - t) * ang) / sn : 1 - t)
+            .addScaledVector(ub, sn > 1e-6 ? Math.sin(t * ang) / sn : t)
+            .multiplyScalar(a.length() + (b.length() - a.length()) * t);
+        }
+        a.copy(b);
       }
-      if (path[path.length - 1] >= N) nodePos(path[path.length - 1], poly[m++]);
+      if (path[path.length - 1] >= N && above(nodePos(path[path.length - 1], c), a)) poly[m++].copy(c);
       const col = COL[y];
       for (let i = 1; i < m; i++) seg(poly[i - 1], poly[i], col, 0.22);
       const speed = Math.min(1.2, 0.04 * gbps + 0.05), n = 3;

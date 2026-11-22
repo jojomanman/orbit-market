@@ -5,8 +5,8 @@
 <script>if (!location.pathname.endsWith("/")) location.replace(location.pathname + "/" + location.search);</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Orbit Market</title>
-<link rel="stylesheet" href="style.css">
-<script type="importmap">{"imports": {"three": "./vendor/three.module.min.js"}}</script>
+<link rel="stylesheet" href="style.css?v={{v}}">
+<script type="importmap">{"imports": {"three": "./vendor/three.module.min.js?v={{v}}", "./vendor/OrbitControls.js": "./vendor/OrbitControls.js?v={{v}}"}}</script>
 </head>
 <body>
 <main>
@@ -101,6 +101,6 @@
     <nav id="wnav"><button id="back">Back</button><span id="wdots"></span><button id="next">Next</button></nav>
   </aside>
 </main>
-<script type="module" src="app.js"></script>
+<script type="module" src="app.js?v={{v}}"></script>
 </body>
 </html>

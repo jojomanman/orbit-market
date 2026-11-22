@@ -216,3 +216,53 @@ class FeaturedPlan(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Http(unittest.TestCase):
+    """The handler over a real socket: a viewer keeps its own featured job by id, text goes gzipped on request only,
+    index.html carries the static version and versioned assets are cached for a year."""
+    @classmethod
+    def setUpClass(cls):
+        import threading
+        from http.server import ThreadingHTTPServer
+        from server import Handler, Sim
+        Handler.sim = Sim(0.2, "customers")
+        Handler.sim.step()
+        cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+        cls.base = "http://127.0.0.1:%d" % cls.srv.server_address[1]
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown()
+
+    def get(self, path, gz=False):
+        import urllib.request
+        r = urllib.request.urlopen(urllib.request.Request(self.base + path, headers={"Accept-Encoding": "gzip"} if gz else {}))
+        return r.headers, r.read()
+
+    def test_viewer_keeps_its_own_job(self):
+        first = json.loads(self.get("/api/featured?next=1")[1])
+        second = json.loads(self.get("/api/featured?next=1")[1])
+        self.assertEqual(json.loads(self.get("/api/featured?id=" + first["id"])[1])["id"], first["id"])
+        self.assertEqual(json.loads(self.get("/api/featured?id=0xnotajob")[1])["id"], second["id"])   # unknown -> shared
+
+    def test_gzip_only_when_accepted(self):
+        import gzip
+        plain = self.get("/vendor/three.module.min.js")
+        self.assertIsNone(plain[0].get("Content-Encoding"))
+        h, body = self.get("/vendor/three.module.min.js", gz=True)
+        self.assertEqual(h["Content-Encoding"], "gzip")
+        self.assertEqual(gzip.decompress(body), plain[1])
+        self.assertLess(len(body), len(plain[1]) / 3)
+        self.assertEqual(self.get("/tex/day.jpg", gz=True)[0].get("Content-Encoding"), None)   # jpeg is not recompressed
+        self.assertEqual(self.get("/api/flows", gz=True)[0]["Content-Encoding"], "gzip")
+
+    def test_versioned_static_cache(self):
+        h, body = self.get("/")
+        self.assertEqual(h["Cache-Control"], "no-cache")
+        v = body.decode().split("app.js?v=")[1].split('"')[0]
+        self.assertRegex(v, r"^[0-9a-f]{10}$")
+        self.assertEqual(self.get("/app.js?v=" + v)[0]["Cache-Control"], "max-age=31536000, immutable")
+        self.assertEqual(self.get("/app.js")[0]["Cache-Control"], "max-age=300")
+        self.assertEqual(self.get("/api/state")[0]["Cache-Control"], "no-store")

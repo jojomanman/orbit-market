@@ -2,6 +2,8 @@
 // api/constellation; the server sends only market state (api/state) once per tick.
 import * as THREE from "three";
 import { OrbitControls } from "./vendor/OrbitControls.js";
+
+const V = new URL(import.meta.url).search;   // ?v=... from index.html, so textures share the year-long cache
 import { createOverview } from "./overview.js";
 
 const RE = 6378.137, MU = 398600.4418;
@@ -37,7 +39,7 @@ const tex = (f) => { const t = new THREE.TextureLoader().load(f); t.colorSpace =
 earth.add(new THREE.Mesh(
   new THREE.SphereGeometry(1, 128, 96),
   new THREE.ShaderMaterial({
-    uniforms: { sun: sunUniform, day: { value: tex("tex/day.jpg") }, night: { value: tex("tex/night.jpg") } },
+    uniforms: { sun: sunUniform, day: { value: tex("tex/day.jpg" + V) }, night: { value: tex("tex/night.jpg" + V) } },
     vertexShader: `varying vec3 vN; varying vec2 vUv; void main(){ vUv = uv;
       vN = normalize((modelMatrix*vec4(position,0.)).xyz); gl_Position = projectionMatrix*viewMatrix*modelMatrix*vec4(position,1.); }`,
     fragmentShader: `uniform vec3 sun; uniform sampler2D day; uniform sampler2D night; varying vec3 vN; varying vec2 vUv;
@@ -559,10 +561,16 @@ function buildSteps() {
   return S;
 }
 
+// The followed job is this viewer's own: api/featured?id= returns it while the server remembers it, so another
+// viewer's New job (the server's featured is shared) or a reload (#job=) never switches it (Jonas 15:47 "it seems to
+// switch which job we are following unexpectedly": every page load used to ask for the next job). Only Next on the
+// last step or Follow a job again moves on.
 async function loadTx(next) {
-  const j = await (await fetch("api/featured" + (next ? "?next=1" : ""), { cache: "no-store" })).json();
-  if (!j.id || !j.plan) return;
-  if (next || !tx || j.id === tx.id) tx = j;
+  const id = tx ? tx.id : (location.hash.match(/job=(\w+)/) || [])[1];
+  const j = await (await fetch("api/featured" + (next ? "?next=1" : id ? "?id=" + id : ""), { cache: "no-store" })).json();
+  if (!j.id || !j.plan || (!next && tx && j.id !== tx.id)) return;
+  tx = j;
+  window.history.replaceState(null, "", "#job=" + tx.id);
   renderTx();
   if (next || !steps.length) { steps = buildSteps(); go(0); }
 }
@@ -637,16 +645,17 @@ let walkLegs = [], packetLegs = [];   // [leg index, mesh] drawn this step; leg 
 // Every leg is a unit cylinder re-aimed each frame between its two nodes at the walkthrough clock, so links stay
 // attached to the moving satellites and stations instead of being frozen where they were planned.
 const LEG_GEOM = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true);
-function legEnds(i, t) {
-  const L = tx.plan.legs;
-  return [nodeAt(L[i - 1].node, t, new THREE.Vector3()), nodeAt(L[i].node, t, new THREE.Vector3())];
+function legEnds(i, t, tGround = t) {
+  const L = tx.plan.legs, at = (n) => nodeAt(n, n >= N ? tGround : t, new THREE.Vector3());
+  return [at(L[i - 1].node), at(L[i].node)];
 }
 const legDir = new THREE.Vector3();
 // The whole-route overview pins each leg at its own planned instant (up at match, down at compute end): a leg
-// re-aimed an hour later hangs in space where nothing happened.
+// re-aimed an hour later hangs in space where nothing happened. Ground ends sit on the Earth as drawn now, so the
+// up leg stands on its station instead of a few degrees of rotation beside it.
 function aimLegs(t) {
   for (const [i, m] of walkLegs) {
-    const [p, q] = legEnds(i, m.userData.at ?? t);
+    const [p, q] = legEnds(i, m.userData.at ?? t, t);
     legDir.subVectors(q, p);
     m.position.lerpVectors(p, q, 0.5);
     m.scale.set(m.userData.r, legDir.length(), m.userData.r);
@@ -825,7 +834,7 @@ function frame() {
   setTarget(target.lat, target.lon);
   await poll();
   setInterval(poll, 1000);
-  loadTx(true);
+  loadTx(false);
   setInterval(() => loadTx(false), 1000);
   frame();
 })();
