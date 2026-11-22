@@ -24,9 +24,10 @@ import numpy as np
 
 from sim.market import (DEFAULT_MODE, IMAGER_KM, MODES, REF, RES, WEATHER_AI_RATIO, WEATHER_AI_UNITS, WEATHER_RAW_MBPS, Demand,
                         Engine, ref_cost, sun_elevation_sin)
-from sim import settlement
+from sim import board, physics as ph, settlement
 from sim.customers import Customers
-from sim.orbit import REGIONS, Constellation, Geometry, gmst, passes, region_of, sun_vector
+from sim.routing import ROUTERS, Network
+from sim.orbit import C_KM_S, REGIONS, Constellation, Geometry, gmst, passes, region_of, sun_vector
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 STATIC = os.path.join(ROOT, "static")
@@ -58,6 +59,7 @@ class Sim:
         self.weather = "off"
         self.constellation = json.dumps(self.con.static_json()).encode()
         self.featured = None
+        self.board_view = {}
         self.gs_names = [g["name"] for g in self.con.static_json()["ground_stations"]]
         self.imagers = np.nonzero(np.isin(self.con.shell, (2, 3)))[0]
         for _ in range(int(warmup_hours * 3600 / TICK_SIM_S)):
@@ -90,6 +92,9 @@ class Sim:
         self.t += TICK_SIM_S
         self.geo = geo
         self._snapshot(geo)
+        # Built between ticks so the live board never shows a half-applied tick, once however many viewers poll.
+        self.board_view = board.build(self.engines[DEFAULT_MODE], self.customers.orgs if self.customers else [], geo.t,
+                                 TICK_SIM_S)
 
     def _snapshot(self, geo):
         modes = {k: {"label": e.mode.label, **e.metrics()} for k, e in self.engines.items()}
@@ -166,8 +171,80 @@ class Sim:
         fresh = [t["job"] for t in list(e.tasks) if t["job"].get("customer") and t["job"]["placed"]["t"] >= self.t - 2 * TICK_SIM_S]
         full = [j for j in fresh if j["out_gb"] > 0 and j.get("location")]
         pool = full or fresh or [t["job"] for t in list(e.tasks)]
-        self.featured = random.choice(pool) if pool else None
+        # The walkthrough steps through every hop: of a few candidates take one that starts on the ground and has
+        # a route near 8 legs, long enough to show relaying, short enough to click through.
+        def fit(j):
+            legs = j.get("plan", {}).get("legs", [])
+            return abs(len(legs) - 7) + (0 if legs and legs[0]["kind"] == "gs" else 100)
+        cands = random.sample(pool, min(6, len(pool)))
+        for j in cands:
+            if j.get("placed"):
+                j["plan"] = self.plan_route(e, j)
+        self.featured = min(cands, key=fit) if cands else None
         return self.featured_view()
+
+    def plan_route(self, e, j):
+        """Contract model: the relay route is fixed when the job is matched, not discovered hop by hop.
+
+        Uplink from the ground station nearest the customer to the satellite overhead, mesh hops to the compute
+        satellite, then the downlink path for where the satellites will be when compute ends. Each leg carries its length and light time,
+        so the walkthrough can show every hop."""
+        n, sat = self.con.n_sats, int(j["placed"]["sat"])
+        geo = Geometry(self.con, self.t)
+        nodes = []
+        loc = j.get("location")
+        if loc and len(geo.gs_links):
+            la, lo = math.radians(loc[0]), math.radians(loc[1])
+            p = np.array([math.cos(la) * math.cos(lo), math.cos(la) * math.sin(lo), math.sin(la)])
+            seen = set(geo.gs_links[:, 1].astype(int).tolist())
+            g = next((int(x) for x in np.argsort(-(self.con.gs_ecef @ p)) if int(x) in seen), None)
+            vis = geo.gs_links[geo.gs_links[:, 1] == g]
+            if len(vis):
+                first = int(vis[np.argmin(vis[:, 2]), 0])
+                up = e.net.paths_between([(first, sat)])[0] if first != sat else [sat]
+                if up:
+                    nodes = [n + g] + up
+        nodes = nodes or [sat]
+        at = len(nodes) - 1
+        # The downlink is booked now for the orbit positions when compute finishes, on today's link prices.
+        t_out = self.t + j["duration"]
+        geo_out = Geometry(self.con, t_out)
+        net_out = Network(self.con, geo_out, e.fleet, e.prev_load, ROUTERS[e.mode.router], e.pr)
+        down = net_out.path_to_ground(sat)
+        nodes += down[1:] if down else []
+        pos = lambda x, i: (geo if i <= at else geo_out).ecef[x] if x < n else self.con.gs_ecef[x - n]
+        # Priced as the engine prices the job (_cost): compute on the chosen satellite plus the output's way down.
+        # Uplink legs carry the input but the model has no uplink price yet, so they show volume only.
+        pr, gb_in, gb_out, h = e.pr, max(j["storage_gb"] - j["out_gb"], 0), j["out_gb"], j["duration"] / 3600
+        item = lambda what, qty, unit, rate: {"what": what, "qty": round(qty, 3), "unit": unit, "rate": round(float(rate), 5),
+                                              "usd": round(qty * float(rate), 4)}
+        legs = []
+        for i, x in enumerate(nodes):
+            km = float(np.linalg.norm(pos(x, i) - pos(nodes[i - 1], i))) if i else 0.0
+            prev = int(nodes[i - 1]) if i else None
+            if i == 0 or i <= at:
+                items = [item("input", gb_in, "GB", 0)] if i else []
+            elif x >= n:
+                items = [item("downlink", gb_out, "GB", pr.dl[prev]), item("station", gb_out, "GB", pr.gs[x - n])]
+            else:
+                items = [item("mesh link", gb_out, "GB", pr.isl[net_out.edge_key[(prev, int(x))]])]
+            legs.append({"node": int(x), "t": self.t if i <= at else t_out, "kind": "gs" if x >= n else "sat",
+                         "name": self.gs_names[x - n] if x >= n else f"sat {x}",
+                         "owner": None if x >= n else str(self.con.owner[x]), "km": round(km), "ms": round(1000 * km / C_KM_S, 2),
+                         "items": items})
+        compute = [item("CPU", j["units"] * h, "core-h", pr.cpu[sat]), item("memory", j["mem"] * h, "GB-h", pr.mem[sat]),
+                   item("storage", j["storage_gb"] / 1000 * max(h, 0.5), "TB-h", pr.sto[sat])]
+        # Prices have moved since the match (this job now loads its satellite), so scale each part to what the
+        # settlement actually escrowed: rates keep their proportions, totals match the paid price.
+        if "settle" in j:
+            paid = settlement.job_view(j["settle"])["legs"]
+            for part, got in ((compute, paid["compute"]["usd"]), ([x for l in legs for x in l["items"]], paid["delivery"]["usd"])):
+                k = got / max(sum(x["usd"] for x in part), 1e-9)
+                for x in part:
+                    if x["usd"]:
+                        x["rate"], x["usd"] = round(x["rate"] * k, 5), round(x["usd"] * k, 4)
+        return {"t": self.t, "legs": legs, "compute_at": at, "compute": compute,
+                "downlink_s": round(j["out_gb"] * 8 / ph.DOWNLINK_GBPS, 1)}
 
     def featured_view(self):
         """The featured job as a transaction: request, quotes, route with owners, timings, settlement."""
@@ -185,7 +262,7 @@ class Sim:
         out = {"id": f"0x{abs(hash((j['id'], j['arrival']))) & 0xffffffffffff:012x}", "status": status,
                "why": org["name"] if org else "API", "what": org["what"][:120] if org else "",
                "type": j.get("ctype", j["kind"]).replace("_", " "),
-               "region": REGIONS[int(region_of_point(*j["location"]))] if j.get("location") else None,
+               "region": REGIONS[int(region_of_point(*j["location"]))] if j.get("location") else None, "loc": j.get("location"),
                "spec": {"cpu": j["units"], "mem_gb": round(j["mem"], 1), "storage_gb": round(j["storage_gb"], 1),
                         "run_s": round(j["duration"]), "out_gb": round(j["out_gb"], 2)},
                "offer": {"max_usd": round(j["value"], 2), "deadline_s": round(j["deadline"] - j["arrival"])},
@@ -195,6 +272,8 @@ class Sim:
                "quotes": [{"sat": s, "owner": str(self.con.owner[s]), "usd": u} for s, u in j.get("quotes", [])],
                "sat": p.get("sat"), "price_usd": p.get("price"), "path": [int(x) for x in path],
                "hops": hops, "station": station, "why_failed": j["result"]["why"] if "result" in j else None}
+        if "plan" in j:
+            out["plan"] = j["plan"]
         if "settle" in j:
             out["settlement"] = settlement.job_view(j["settle"])
         return out
@@ -510,6 +589,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, sim.sats_summary())
         if path == "/api/featured":
             return self._json(200, sim.featured_view() if q.get("next") is None and sim.featured else sim.next_featured())
+        if path == "/api/board":
+            return self._json(200, sim.board_view)
         if path == "/api/settlement":
             return self._json(200, {"t": sim.t, "mode": mode, **sim.engines[mode].ledger.view()})
         if path == "/api/scenario":
@@ -534,6 +615,8 @@ class Handler(BaseHTTPRequestHandler):
             path = "/index.html"
         if path == "/network":
             path = "/network.html"
+        if path == "/live":
+            path = "/live.html"
         full = os.path.realpath(os.path.join(STATIC, path.lstrip("/")))
         if not full.startswith(STATIC + os.sep) or not os.path.isfile(full):
             return self._json(404, {"error": "not found"})

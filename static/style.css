@@ -78,7 +78,39 @@ select { width: 100%; padding: 5px 4px; }
 .actions { display: flex; gap: calc(2 * var(--u)); align-items: center; margin-top: var(--u); }
 .actions button { background: var(--line); border: 0; color: var(--text); font: inherit; font-size: 12px; padding: 6px 14px; cursor: pointer; }
 #globe { cursor: crosshair; }
+/* Walkthrough. Type scale 11 / 13 / 20 / 28, weights 400 and 600, everything on the 8 px grid. */
+aside { padding-bottom: calc(12 * var(--u)); }
+#walk { display: grid; gap: calc(3 * var(--u)); }
+#walk h2 { font-size: 20px; font-weight: 600; line-height: 1.25; margin-top: calc(-2 * var(--u)); }
+#wsub { color: var(--dim); margin-top: calc(-2 * var(--u)); min-height: 2.8em; }
+#walk table td, #walk table th { padding: 6px 0; white-space: nowrap; }
+#walk table td + td, #walk table th + th { padding-left: calc(2 * var(--u)); }
+.facts td:first-child { color: var(--dim); }
+.facts tr + tr td, #wcost tr + tr td { border-top: 1px solid var(--line); }
+#wcost tr.win td { color: var(--hot); }
+#wcost tr.tot td { color: var(--text); font-weight: 600; }
+#wtotal { display: flex; justify-content: space-between; align-items: baseline; }
+#wtotal span { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+#wtotal b { font-size: 28px; font-weight: 600; color: var(--hot); }
+#wtotal:empty, #wcost:empty { display: none; }
+#wnav { position: fixed; right: 0; bottom: 0; width: 400px; height: calc(9 * var(--u)); padding: 0 calc(3 * var(--u));
+  display: grid; grid-template-columns: 96px minmax(0, 1fr) 96px; align-items: center; gap: calc(2 * var(--u));
+  background: var(--panel); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+#wnav button { height: calc(5 * var(--u)); border: 1px solid var(--line); background: none; color: var(--text);
+  font: inherit; font-weight: 600; cursor: pointer; }
+#wnav #next { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+#wnav button:disabled { opacity: .35; cursor: default; }
+#wdots { display: flex; justify-content: safe center; gap: 4px; overflow: hidden; }
+#wdots i { flex: none; }
+#wdots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
+#wdots i.done { background: var(--dim); }
+#wdots i.on { background: var(--hot); }
+#wlabel { position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; white-space: nowrap; font-weight: 600;
+  color: var(--hot); text-shadow: 0 0 4px #000, 0 0 8px #000; }
+#wtime { position: absolute; left: calc(3 * var(--u)); bottom: calc(3 * var(--u)); z-index: 2; display: flex;
+  gap: calc(2 * var(--u)); font-size: 11px; color: var(--text); text-shadow: 0 0 4px #000; pointer-events: none; }
 @media (max-width: 900px) {
+  #wnav { width: 100%; border-left: 0; }
   main { grid-template-columns: 1fr; grid-template-rows: 55vh auto; height: auto; }
   aside { border-left: 0; border-top: 1px solid var(--line); }
 }

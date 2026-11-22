@@ -139,5 +139,29 @@ class CustomerFiles(unittest.TestCase):
             self.assertEqual(len(c.problems), 4)
             self.assertFalse(c.reload())    # unchanged files: no re-read
 
+
+class FeaturedPlan(unittest.TestCase):
+    def test_planned_route_is_connected_and_priced_at_the_paid_price(self):
+        from server import Sim
+        sim = Sim(0.2, "customers")
+        sim.step()
+        v = sim.next_featured()
+        self.assertIsNotNone(v.get("plan"), v)
+        legs, ca = v["plan"]["legs"], v["plan"]["compute_at"]
+        self.assertEqual(legs[ca]["node"], v["sat"])
+        self.assertEqual(legs[-1]["kind"], "gs")
+        self.assertTrue(all(l["kind"] == "sat" for l in legs[1:-1]))
+        if "settlement" in v:
+            chain = sum(i["usd"] for l in legs for i in l["items"]) + sum(i["usd"] for i in v["plan"]["compute"])
+            self.assertAlmostEqual(chain + v["settlement"]["fee_usd"], v["price_usd"], delta=0.01 + 0.002 * v["price_usd"])
+
+    def test_no_jobs_means_no_featured(self):
+        from server import Sim
+        sim = Sim(0, "customers")
+        for e in sim.engines.values():
+            e.tasks.clear()
+        self.assertEqual(sim.next_featured(), {"job": None})
+
+
 if __name__ == "__main__":
     unittest.main()

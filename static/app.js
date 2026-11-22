@@ -20,7 +20,7 @@ const camera = new THREE.PerspectiveCamera(35, 1, 0.01, 200);
 camera.position.set(1.6, 1.4, 3.6);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.minDistance = 1.6;
+controls.minDistance = 1.2;
 controls.maxDistance = 8;
 controls.autoRotate = true;
 controls.autoRotateSpeed = 0.15;
@@ -216,7 +216,7 @@ function drawRoutes(dt) {
     if (!r.path) continue;
     if (r.id === "hl") c.setHex(0xbfe8ff);
     else c.setHex(0x5f8fb8).lerp(new THREE.Color(0xffb35c), Math.min(1, r.load || 0));
-    const w = (r.id === "hl" ? 1 : 0.35) * f;
+    const w = (r.id === "hl" ? 1 : 0.12) * f;   // the market stays faint behind the walkthrough
     // The relay hops zigzag through the mesh grid; draw the satellite part as one great-circle arc from the first to
     // the last satellite and the ground legs as straight up/down links.
     const sats = r.path.filter((id) => id < N);
@@ -451,19 +451,218 @@ function track(j) {
 }
 let highlight = null;
 
-// ---- featured request: one real sim job followed from request to delivery, as a transaction ---------------------
-let tx = null, txDoneAt = null;
+// ---- walkthrough: one real job under the contract model, one step per Next --------------------------------------
+// The server plans the whole relay route at match time (api/featured plan.legs, each leg frozen at its planned
+// instant), so every step is a fixed scene: camera target, clock target and speed, the active leg and its prices.
+let tx = null, steps = [], si = 0, walkT = null, stepAt = 0, clockFrom = 0, camFrom = null;
 const mmss = (s) => s == null ? "" : `+${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
-async function loadTx(next) {
-  tx = await (await fetch("api/featured" + (next ? "?next=1" : ""), { cache: "no-store" })).json();
-  if (!tx.id) return;
-  if (tx.path.length) highlight = { sat: tx.sat, path: tx.path };
-  else if (tx.sat != null) highlight = { sat: tx.sat, path: [tx.sat] };
-  if (tx.t.done && !txDoneAt) txDoneAt = performance.now();
-  if (txDoneAt && performance.now() - txDoneAt > 20000) { txDoneAt = null; return loadTx(true); }
-  renderTx();
+const mins = (s) => s < 90 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`;
+const ms = (v) => `${v.toFixed(1)} ms`;
+const money = (v) => v == null ? "" : !v ? "$0" : "$" + (v >= 100 ? Math.round(v).toLocaleString("en-US") : v >= 1 ? v.toFixed(2) : v.toFixed(4));
+const gm = (t) => state ? state.gmst + (t - state.t) * 7.2921159e-5 : 0;
+const Y = new THREE.Vector3(0, 1, 0);
+
+// Position of a node at time t, independent of the live clock: the planned route stays where it was planned.
+function nodeAt(id, t, out) {
+  if (id >= N) { const g = gsLocal[id - N]; return out.set(g[0], g[1], g[2]).applyAxisAngle(Y, gm(t)); }
+  const dt = t - con.epoch, raan = raan0[id] + raanDot[id] * dt, u = u0[id] + nMot[id] * dt;
+  const cu = Math.cos(u), su = Math.sin(u), cr = Math.cos(raan), sr = Math.sin(raan), ci = Math.cos(inc[id]), sn = Math.sin(inc[id]);
+  return out.set(a[id] * (cr * cu - sr * su * ci), a[id] * su * sn, -a[id] * (sr * cu + cr * su * ci));
 }
-$("next").onclick = () => { txDoneAt = null; loadTx(true); };
+const llAt = (ll, t, out) => out.set(...llToLocal(ll[0], ll[1], 1.0)).applyAxisAngle(Y, gm(t));
+
+function buildSteps() {
+  const p = tx.plan, L = p.legs, ca = p.compute_at, sp = tx.spec, t0 = p.t, t1 = L[L.length - 1].t;
+  const pin = tx.loc ? { ll: tx.loc } : { node: L[0].node };
+  // Legs a..b as one step; long relay chains are cut into at most 4 steps so the walk stays short.
+  const span = (a, b) => {
+    const ls = L.slice(a, b + 1), lat = ls.reduce((q, l) => q + l.ms, 0), merged = {};
+    for (const it of ls.flatMap((l) => l.items)) {
+      const m = merged[it.what] ??= { ...it, qty: 0, usd: 0 };
+      m.qty += it.qty; m.usd += it.usd; m.rate = m.qty ? m.usd / m.qty : 0;
+    }
+    return { legs: [a, b], focus: { node: L[b].node }, t: L[b].t, items: Object.values(merged), speed: lat / 1000 / 1.2,
+      title: `${L[a - 1].name} to ${L[b].name}`, hops: b - a + 1,
+      facts: [[b > a ? "Hops" : "Owner", b > a ? `${b - a + 1}` : L[b].owner],
+        ["Distance", `${ls.reduce((q, l) => q + l.km, 0).toLocaleString("en-US")} km`], ["Light time", ms(lat)]] };
+  };   // the packet crosses the step in 1.2 s, so time runs at latency / 1.2 s
+  const chunks = (a, b) => {
+    const n = b - a + 1, c = Math.ceil(n / 4), out = [];
+    for (let i = a; i <= b; i += c) out.push([i, Math.min(b, i + c - 1)]);
+    return n > 0 ? out : [];
+  };
+  const S = [];
+  S.push({ name: "Dispatch", title: tx.why, sub: tx.what, focus: pin, dist: 2.4, t: t0, speed: 1,
+    facts: [["Job", tx.type], ["Region", tx.region || "global"], ["Needs", `${sp.cpu} CPU, ${sp.mem_gb} GB`],
+      ["Runs", mins(sp.run_s)], ["Returns", `${sp.out_gb} GB`]] });
+  S.push({ name: "Offer", title: `Offer up to ${money(tx.offer.max_usd)}`, sub: "Satellites in view quote; the lowest wins and is paid the second price.",
+    focus: pin, dist: 2.9, t: t0, speed: 1, quotes: true,
+    facts: [["Max price", money(tx.offer.max_usd)], ["Deadline", mins(tx.offer.deadline_s)], ["Paid", money(tx.price_usd)]] });
+  const up = L[0].kind === "gs" ? 1 : 0;
+  if (up) S.push({ ...span(1, 1), name: "Uplink", sub: "Input goes up from the station nearest the customer.", dist: 1.7 });
+  const rel = chunks(up + 1, ca);
+  rel.forEach(([a, b], k) => S.push({ ...span(a, b), name: `Relay ${k + 1} of ${rel.length}`, dist: b > a ? 2.3 : 1.9,
+    sub: "Planned at match time: every hop is booked before the data moves." }));
+  S.push({ name: "Compute", title: `Running on ${L[ca].name}`, sub: `Time sped up: ${mins(sp.run_s)} of processing.`,
+    focus: { node: L[ca].node, live: true }, dist: 2.2, t: t1, tween: 3, items: p.compute, speed: 1,
+    facts: [["CPU", `${sp.cpu} ${sp.cpu === 1 ? "core" : "cores"}`], ["Memory", `${sp.mem_gb} GB`], ["Runs", mins(sp.run_s)], ["Owner", L[ca].owner]] });
+  const down = chunks(ca + 1, L.length - 2);
+  down.forEach(([a, b], k) => S.push({ ...span(a, b), name: `Relay down ${k + 1} of ${down.length}`, dist: b > a ? 2.3 : 1.9,
+    sub: "The output follows the path booked to the station." }));
+  if (L.length - 1 > ca) S.push({ ...span(L.length - 1, L.length - 1), name: "Downlink", dist: 1.8,
+    sub: `${sp.out_gb} GB to the ground in the pass booked at match time.`, speed: Math.max(1, p.downlink_s / 2),
+    facts: [["Data", `${sp.out_gb} GB`], ["Transfer", mins(p.downlink_s)], ["Light time", ms(L[L.length - 1].ms)]] });
+  const lat = L.reduce((s, l) => s + l.ms, 0) / 1000, total = (tx.t.matched - tx.t.arrival > 0 ? tx.t.matched - tx.t.arrival : 0) + lat + sp.run_s + p.downlink_s;
+  S.push({ name: "Delivered", title: `${mins(total)} of ${mins(tx.offer.deadline_s)} deadline`, sub: "The whole route, and who was paid.",
+    focus: { route: true }, dist: 4, t: t1, speed: 1, chain: true,
+    facts: [["Total time", mins(total)], ["Deadline", mins(tx.offer.deadline_s)], ["Price", money(tx.price_usd)]] });
+  return S;
+}
+
+async function loadTx(next) {
+  const j = await (await fetch("api/featured" + (next ? "?next=1" : ""), { cache: "no-store" })).json();
+  if (!j.id || !j.plan) return;
+  if (next || !tx || j.id === tx.id) tx = j;
+  renderTx();
+  if (next || !steps.length) { steps = buildSteps(); go(0); }
+}
+function go(i) {
+  si = Math.max(0, Math.min(steps.length - 1, i));
+  stepAt = performance.now(); walkT ??= steps[si].t; clockFrom = walkT; camFrom = camera.position.clone(); steeredAt = -1e9;
+  buildRoute();
+  renderStep();
+}
+function next() { si === steps.length - 1 ? loadTx(true) : go(si + 1); }
+$("next").onclick = next;
+$("back").onclick = () => go(si - 1);
+addEventListener("keydown", (e) => {
+  if (e.target.closest("input, select, textarea")) return;
+  if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); next(); }
+  if (e.key === "ArrowLeft") { e.preventDefault(); go(si - 1); }
+});
+
+// Running total: every priced item of the steps so far, in step order.
+function spent(upto) {
+  return steps.slice(0, upto + 1).reduce((s, x) => s + (x.items || []).reduce((q, it) => q + it.usd, 0), 0);
+}
+const table = (rows, cls) => `<table class="${cls || ""}">${rows.join("")}</table>`;
+function renderStep() {
+  const s = steps[si], st = tx.settlement;
+  $("wstep").textContent = `Step ${si + 1} of ${steps.length} · ${s.name}`;
+  $("wtitle").textContent = s.title;
+  $("wsub").textContent = s.sub || "";
+  $("wfacts").innerHTML = s.facts.map(([k, v]) => `<tr><td>${k}</td><td>${v ?? ""}</td></tr>`).join("");
+  let cost = "";
+  if (s.quotes) cost = table([`<tr><th>Satellite</th><th>Owner</th><th>Quote</th></tr>`].concat(tx.quotes.map((q, i) =>
+    `<tr class="${i === 0 ? "win" : ""}"><td>${i === 0 ? "Winner, " : ""}sat ${q.sat}</td><td>${q.owner}</td><td>${money(q.usd)}</td></tr>`)));
+  else if (s.chain) {
+    const sum = (f) => steps.filter(f).reduce((q, x) => q + (x.items || []).reduce((a, it) => a + it.usd, 0), 0);
+    const ent = st ? st.entry : "";
+    const rows = [["Compute", ent, sum((x) => x.name === "Compute")],
+      ["Mesh relay", st ? [...new Set([ent, ...Object.keys(st.forwarders).filter((k) => k !== "GS")])].join(", ") : "", sum((x) => x.name.startsWith("Relay"))],
+      ["Downlink and station", "station", sum((x) => x.name === "Downlink")], ["Market fee", "market", st ? st.fee_usd : 0]];
+    cost = table([`<tr><th>Part</th><th>Paid to</th><th>USD</th></tr>`].concat(rows.map(([a, b, c]) => `<tr><td>${a}</td><td>${b}</td><td>${money(c)}</td></tr>`),
+      [`<tr class="tot"><td>Total</td><td></td><td>${money(tx.price_usd)}</td></tr>`]));
+  } else if (s.items && s.items.length) cost = table([`<tr><th>Item</th><th>Amount</th><th>Rate</th><th>USD</th></tr>`].concat(s.items.map((it) =>
+    `<tr><td>${it.what}</td><td>${fmt(it.qty)} ${it.unit}</td><td>${it.rate ? money(it.rate) : "unpriced"}</td><td>${money(it.usd)}</td></tr>`)));
+  $("wcost").innerHTML = cost;
+  $("wtotal").innerHTML = s.chain ? "" : `<span>Running total</span><b>${money(spent(si))}</b>`;
+  $("wdots").innerHTML = steps.map((_, i) => `<i class="${i < si ? "done" : i === si ? "on" : ""}"></i>`).join("");
+  $("back").disabled = si === 0;
+  $("next").textContent = si === steps.length - 1 ? "New job" : "Next";
+}
+
+// Scene objects of the walkthrough, rebuilt per step: done legs dim, the active leg bold, future legs dashed.
+const walkGroup = new THREE.Group();
+scene.add(walkGroup);
+function ringTexture(fill) {
+  const c = document.createElement("canvas"); c.width = c.height = 128;
+  const g = c.getContext("2d"); g.strokeStyle = g.fillStyle = "#fff"; g.lineWidth = 10;
+  g.beginPath(); g.arc(64, 64, fill ? 40 : 52, 0, 2 * Math.PI); fill ? g.fill() : g.stroke();
+  return new THREE.CanvasTexture(c);
+}
+const RING = ringTexture(false), DOT = ringTexture(true);
+const sprite = (tex, color, size) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color, transparent: true,
+  depthTest: false })); s.scale.setScalar(size); s.userData.size = size; return s; };
+const focusRing = sprite(RING, 0xffb35c, 0.05), focusDot = sprite(DOT, 0xffb35c, 0.014), packet = sprite(DOT, 0xffffff, 0.012);
+focusRing.renderOrder = focusDot.renderOrder = packet.renderOrder = 10;
+scene.add(focusRing, focusDot, packet);
+const focusP = new THREE.Vector3();
+let packetPath = [];   // [start, end] of every active leg, in order
+function legEnds(i) {
+  const L = tx.plan.legs;
+  return [nodeAt(L[i - 1].node, L[i].t, new THREE.Vector3()), nodeAt(L[i].node, L[i].t, new THREE.Vector3())];
+}
+function buildRoute() {
+  walkGroup.clear();
+  const s = steps[si], L = tx.plan.legs, [a, b] = s.legs || [L.length, L.length - 1];
+  const reached = s.legs ? a : s.name === "Delivered" ? L.length : s.name === "Compute" ? tx.plan.compute_at + 1 : 1;
+  const done = [], future = [];
+  for (let i = 1; i < L.length; i++) (i < reached ? done : i > Math.max(b, reached - 1) ? future : []).push(...legEnds(i));
+  if (done.length) walkGroup.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(done),
+    new THREE.LineBasicMaterial({ color: 0x7cc4ff, transparent: true, opacity: s.name === "Delivered" ? 0.95 : 0.55 })));
+  if (future.length) {
+    const f = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(future),
+      new THREE.LineDashedMaterial({ color: 0x9aa7b4, dashSize: 0.008, gapSize: 0.008, transparent: true, opacity: 0.45 }));
+    f.computeLineDistances(); walkGroup.add(f);
+  }
+  packetPath = [];
+  const bold = s.focus.route ? [1, L.length - 1] : [a, b];
+  for (let i = bold[0]; i <= bold[1]; i++) {
+    const [p, q] = legEnds(i);
+    walkGroup.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.LineCurve3(p, q), 8, 0.0022, 6),
+      new THREE.MeshBasicMaterial({ color: s.focus.route ? 0x7cc4ff : 0xffb35c })));
+    if (!s.focus.route) packetPath.push(p, q);
+  }
+  const mark = (tex, color, size, at) => { const m = sprite(tex, color, size); at(m.position); walkGroup.add(m); };
+  if (s.quotes) for (const [i, q] of tx.quotes.entries()) mark(RING, i ? 0x7cc4ff : 0xffb35c, i ? 0.03 : 0.045, (v) => nodeAt(q.sat, s.t, v));
+  if (tx.loc) mark(DOT, 0xffffff, 0.012, (v) => llAt(tx.loc, steps[0].t, v));
+  // Focus point of the step.
+  if (s.focus.ll) llAt(s.focus.ll, s.t, focusP);
+  else if (s.focus.node != null) nodeAt(s.focus.node, s.t, focusP);
+  else { focusP.set(0, 0, 0); for (let i = 1; i < L.length; i++) legEnds(i).forEach((v) => focusP.add(v)); focusP.normalize(); }
+  const label = s.focus.ll ? tx.why : s.focus.node != null ? (L.find((l) => l.node === s.focus.node) || {}).name : "";
+  const own = s.focus.node != null && s.focus.node < N ? (L.find((l) => l.node === s.focus.node) || {}).owner : null;
+  $("wlabel").textContent = label + (own ? ` · operator ${own}` : "");
+  $("wlabel").hidden = !label;
+}
+
+const ease = (x) => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+let steeredAt = -1e9;
+controls.addEventListener("start", () => { steeredAt = performance.now(); });
+const camDir = new THREE.Vector3(), camTo = new THREE.Vector3(), scr = new THREE.Vector3();
+// Clock, camera, markers: called every frame, returns the walkthrough's sim time.
+function walkFrame(dt) {
+  const s = steps[si], now = performance.now(), dur = (s.tween || 1.1) * 1000, k = Math.min(1, (now - stepAt) / dur);
+  if (k < 1) walkT = clockFrom + (s.t - clockFrom) * ease(k);
+  else walkT += dt * s.speed;
+  const shown = k < 1 && s.tween ? (s.t - clockFrom) / (s.tween) : s.speed;
+  $("wspeed").textContent = `time ×${shown >= 10 ? Math.round(shown).toLocaleString("en-US") : shown >= 1 ? shown.toFixed(0) : shown.toPrecision(1)}`;
+  $("wclock").textContent = new Date(walkT * 1000).toISOString().slice(11, 19) + " UTC";
+  if (s.focus.live) nodeAt(s.focus.node, walkT, focusP);
+  if (steeredAt < stepAt) {
+    camTo.copy(focusP).normalize().multiplyScalar(s.dist);
+    const c = ease(Math.min(1, (now - stepAt) / 1100));
+    camDir.copy(camFrom).normalize().lerp(camTo.clone().normalize(), c).normalize();
+    camera.position.copy(camDir.multiplyScalar(camFrom.length() + (s.dist - camFrom.length()) * c));
+  }
+  const pulse = 1 + 0.35 * Math.sin(now / 180);
+  focusRing.position.copy(focusP); focusDot.position.copy(focusP);
+  const d = camera.position.distanceTo(focusP);
+  focusRing.scale.setScalar(0.05 * d * pulse); focusDot.scale.setScalar(0.012 * d);
+  focusRing.visible = focusDot.visible = !s.focus.route;
+  const u = ((now - stepAt) % 1600) / 1200, n = packetPath.length / 2;
+  packet.visible = n > 0 && u <= 1;
+  if (packet.visible) {
+    const x = Math.min(n - 1e-6, u * n), i = Math.floor(x);
+    packet.position.lerpVectors(packetPath[2 * i], packetPath[2 * i + 1], x - i); packet.scale.setScalar(0.014 * d);
+  }
+  camera.updateMatrixWorld();
+  scr.copy(focusP).project(camera);
+  const lab = $("wlabel");
+  lab.style.transform = `translate(${(scr.x + 1) / 2 * host.clientWidth + 40}px, ${(1 - scr.y) / 2 * host.clientHeight - 9}px)`;
+  return walkT;
+}
 
 function renderTx() {
   const t = tx.t, at = (x) => x == null ? null : Math.max(0, x - t.arrival), st = tx.settlement;
@@ -487,20 +686,6 @@ function renderTx() {
   $("tx").innerHTML = `<div class="txid"><code>${tx.id}</code><span class="pill ${tx.status}">${tx.status}</span></div><ol class="steps">`
     + steps.map(([k, v, tt], i) => `<li class="${v ? "on" : ""} ${i === cur ? "now" : ""}"><b>${k}</b><span>${v || "&nbsp;"}</span><i>${v && tt != null ? mmss(tt) : ""}</i></li>`).join("")
     + `</ol>`;
-  $("speed").textContent = `sim ${tx.speed}x`;
-}
-
-// The camera drifts toward the featured satellite unless someone is steering it.
-let steeredAt = -1e9;
-controls.addEventListener("start", () => { steeredAt = performance.now(); });
-const camDir = new THREE.Vector3();
-function follow() {
-  if (!highlight || performance.now() - steeredAt < 10000) return;
-  const id = (highlight.path || []).filter((x) => x < N).pop();
-  if (id == null) return;
-  nodePos(id, camDir).normalize();
-  const r = camera.position.length();
-  camera.position.normalize().lerp(camDir, 0.01).normalize().multiplyScalar(r);
 }
 
 const sparks = {};
@@ -544,7 +729,7 @@ addEventListener("resize", resize);
 function frame() {
   requestAnimationFrame(frame);
   if (con) {
-    const t = simTime();
+    const live = simTime(), t = steps.length && state ? walkFrame(1 / 60) : live;
     if (state) {
       const gm = state.gmst + (t - state.t) * 7.2921159e-5;
       earth.rotation.y = gm;
@@ -553,7 +738,6 @@ function frame() {
     earth.updateMatrixWorld();
     propagate(t);
     drawRoutes(1 / 60);
-    follow();
   }
   controls.update();
   renderer.render(scene, camera);
