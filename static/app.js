@@ -173,9 +173,11 @@ function simTime() {
   const now = performance.now(), dt = Math.min(0.1, (now - lastFrame) / 1000);
   lastFrame = now;
   if (simT === null) return Date.now() / 1000;
-  simT += dt * rate * play;
-  // Paused or replayed faster, the view runs on its own clock; at 1x it follows the server again.
-  if (play === 1) simT += (lastSrv.t + (now - lastSrv.at) / 1000 * rate - simT) * Math.min(1, dt * 0.5);
+  // Paused or replayed faster, the view runs on its own clock. At 1x it follows the server by running up to 3x
+  // faster or slower, never backwards: a late tick under load used to pull the globe back every few seconds.
+  const err = play === 1 ? lastSrv.t + (now - lastSrv.at) / 1000 * rate - simT : 0;
+  if (Math.abs(err) > 600) simT += err;   // server restarted or a long pause: jump once instead of crawling
+  else simT += dt * rate * play * Math.min(3, Math.max(0, 1 + err / (2 * rate)));
   return simT;
 }
 
@@ -204,7 +206,12 @@ function setView(live) {
   controls.autoRotate = live;
   overview.setOn(live);
 }
-$("views").onclick = (e) => e.target.dataset.v && setView(e.target.dataset.v === "live");
+// "Follow a job" while already following picks a new job (Jonas 15:33).
+$("views").onclick = (e) => {
+  const v = e.target.dataset.v;
+  if (v === "walk" && !liveView) loadTx(true);
+  else if (v) setView(v === "live");
+};
 
 const tmp = new THREE.Vector3();
 function nodePos(id, out) {
