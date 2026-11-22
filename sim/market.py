@@ -1,12 +1,15 @@
-"""Demand, clearing and pricing. Two engines see the same orbits and the same job stream: the market and a baseline.
+"""Demand, pricing and clearing for the satellite compute market.
 
-Clearing is pluggable (CLEARING): a policy decides the order pending jobs are served in and what a resource costs on
-a given satellite. Prices are per resource and region; the market moves them by tatonnement on excess demand each
-tick, the baseline keeps them fixed and serves first come, first served. Both bill at admission and both must fit
-capacity, so the only differences are who gets scarce capacity and where flexible work goes.
+Goods are (resource, satellite or link): compute, memory and storage on each satellite, each inter-satellite link,
+each satellite's downlink terminal and each ground station. A job's price is the sum of the goods it uses on its
+cheapest feasible option (satellite, route, ground station), so position, sun, eclipse and load all show up in it.
+Several engines see the same orbits and the same job stream and differ only in their pricing mode (MODES), so the
+page compares mechanisms on equal terms. Mechanisms and sources: docs/MECHANISMS.md; every constant: docs/MODEL.md.
+Utilization is always served/capacity (<= 1); demand beyond capacity is reported separately as unmet.
 """
 import math
 import random
+from collections import deque
 
 import numpy as np
 
@@ -21,11 +24,18 @@ REF = {"compute": 0.60,     # $/unit-h
        "memory": 0.006,     # $/GB-h
        "storage": 0.30,     # $/TB-h
        "isl": 0.002,        # $/GB per hop
-       "downlink": 0.50}    # $/GB
+       "downlink": 0.50}    # $/GB, station + terminal
 OWNER_MARKUP = {"A": 1.0, "B": 0.9, "C": 1.1, "D": 1.0}
 FOOTPRINT_KM = 940.0        # ground radius seen above 25 deg elevation from ~550 km
-TARGET_UTIL = 0.85
-ETA = 0.12                  # tatonnement step per tick
+IMAGER_KM = 320.0           # imaging swath reach: 30 deg off-nadir from ~560 km
+L_MULT = 0.3                # price floor as a multiple of the anchor (owners' cost floor)
+RETRY_S = 180               # a waiting job re-bids every 3 simulated minutes
+WEATHER_SHELLS = (2, 3)     # S3 (70 deg) and S4 (sun-synchronous) carry weather instruments
+WEATHER_RAW_MBPS = 200.0    # raw imager + hyperspectral sounder stream per satellite
+WEATHER_AI_RATIO = 25.0     # onboard PC compression + product extraction (IASI PC-score heritage)
+WEATHER_AI_UNITS = 4        # compute units the onboard model holds while it runs
+WEATHER_VALUE_PER_GB = 1.5  # what a met agency pays per GB delivered within 30 min (3x the downlink anchor)
+EVENT_RADIUS_DEG = 2.5
 
 HUBS = [(40.7, -74.0, 5), (34.0, -118.2, 3), (41.9, -87.6, 2), (37.4, -122.1, 3), (43.7, -79.4, 1.5),
         (19.4, -99.1, 1.5), (-23.5, -46.6, 2), (-34.6, -58.4, 1), (51.5, -0.1, 4), (48.9, 2.35, 3), (50.1, 8.7, 3),
@@ -57,16 +67,45 @@ def sun_elevation_sin(sun_eci, gmst_rad, lat, lon):
 
 
 class Demand:
-    """Poisson arrivals per job kind, heavy-tailed sizes, regional daily cycles. Rates are per simulated second."""
+    """Poisson arrivals per job kind, heavy-tailed sizes, regional daily cycles. Rates are per simulated second.
+
+    event: a disaster at a point (set by the server) adds urgent imaging, responder compute and damage-data downlink
+    there, bid at several times the normal value, for its duration."""
 
     RATES = {"eo": 1.0, "edge": 3.0, "bulk": 0.12, "batch": 1.2, "relay": 0.3}
+    EVENT_RATES = {"eo": 2.0, "edge": 1.5, "bulk": 0.25}
 
     def __init__(self, land_points, seed=1):
         self.rng = random.Random(seed)
         self.land = land_points
         self.next_id = 1
+        self.event = None
         w = np.array([h[2] for h in HUBS], float)
         self.hub_w = w / w.sum()
+
+    def arrivals(self, now, dt, sun, gmst_rad):
+        jobs = []
+        plan = [(k, r * (1.3 if k in ("edge", "relay") else 1), False) for k, r in self.RATES.items()]
+        if self.event and now < self.event["until"]:
+            plan += [(k, r, True) for k, r in self.EVENT_RATES.items()]
+        for kind, rate, at_event in plan:
+            for _ in range(self._poisson(rate * dt)):
+                job = getattr(self, "_" + kind)(now, sun, gmst_rad, self._event_point() if at_event else None)
+                if job is None:
+                    continue
+                job.update(id=self.next_id, kind=kind, arrival=now + self.rng.random() * dt)
+                job["value"] = self._value(job) * (4.0 if at_event else 1.0)
+                if at_event:
+                    job["tag"] = "event"
+                    job["deadline"] = min(job["deadline"], now + 3600)
+                self.next_id += 1
+                jobs.append(job)
+        return jobs
+
+    def _event_point(self):
+        e = self.event
+        return (e["lat"] + self.rng.gauss(0, EVENT_RADIUS_DEG / 2),
+                e["lon"] + self.rng.gauss(0, EVENT_RADIUS_DEG / 2 / max(0.2, math.cos(math.radians(e["lat"])))))
 
     def _hub(self):
         h = HUBS[int(np.searchsorted(np.cumsum(self.hub_w), self.rng.random()))]
@@ -100,37 +139,37 @@ class Demand:
                 jobs.append(job)
         return jobs
 
-    def _eo(self, now, sun, g):
-        lat, lon = self._target()
-        if sun_elevation_sin(sun, g, lat, lon) < 0.17:   # optical imagery needs the sun ~10 deg up
+    def _eo(self, now, sun, g, pt=None):
+        lat, lon = pt or self._target()
+        if pt is None and sun_elevation_sin(sun, g, lat, lon) < 0.17:   # optical imagery needs the sun ~10 deg up
             return None
         units = int(pareto(self.rng, 1.5, 4, 64))
         gb = pareto(self.rng, 1.3, 20, 4000)
         return dict(units=units, mem=4 * units, storage_gb=gb, duration=pareto(self.rng, 1.6, 120, 3 * 3600),
                     out_gb=0.02 * gb, location=(lat, lon), deadline=now + loguniform(self.rng, 1800, 3 * 3600))
 
-    def _edge(self, now, sun, g):
-        lat, lon = self._hub()
-        if self.rng.random() > diurnal(now, lon) / 1.6:
+    def _edge(self, now, sun, g, pt=None):
+        lat, lon = pt or self._hub()
+        if pt is None and self.rng.random() > diurnal(now, lon) / 1.6:
             return None
         units = int(pareto(self.rng, 1.4, 2, 64))
         dur = loguniform(self.rng, 300, 3600)
         return dict(units=units, mem=2 * units, storage_gb=1, duration=dur, out_gb=0, location=(lat, lon),
                     latency={"p50_ms": self.rng.choice([10, 20, 30])}, deadline=now + 60 + dur)
 
-    def _bulk(self, now, sun, g):
-        lat, lon = self._target()
+    def _bulk(self, now, sun, g, pt=None):
+        lat, lon = pt or self._target()
         gb = pareto(self.rng, 1.2, 50, 20000)
         return dict(units=0, mem=0, storage_gb=gb, duration=0, out_gb=gb, location=(lat, lon),
                     deadline=now + loguniform(self.rng, 3600, 86400))
 
-    def _batch(self, now, sun, g):
+    def _batch(self, now, sun, g, pt=None):
         units = int(pareto(self.rng, 1.3, 16, 64))
         dur = pareto(self.rng, 1.4, 1800, 12 * 3600)
         return dict(units=units, mem=4 * units, storage_gb=pareto(self.rng, 1.5, 10, 2000), duration=dur, out_gb=1,
                     location=None, deadline=now + min(86400, dur * self.rng.uniform(1.5, 4)))
 
-    def _relay(self, now, sun, g):
+    def _relay(self, now, sun, g, pt=None):
         a, b = self._hub(), self._hub()
         if self.rng.random() > (diurnal(now, a[1]) + diurnal(now, b[1])) / 3.2:
             return None
@@ -161,103 +200,210 @@ def ref_cost(job):
             + job["out_gb"] * (REF["downlink"] if job["kind"] != "relay" else 10 * REF["isl"]))
 
 
+def bundle_size(job):
+    """Sum of quantity/capacity over the goods a job takes, normalised to one L-class satellite and one terminal-hour."""
+    return (job["units"] / 64 + job["mem"] / 256 + job["storage_gb"] / 8000
+            + job["out_gb"] / (ph.DOWNLINK_GBPS * 3600 / 8)) or 1e-3
+
+
 def _unit(lat, lon):
     la, lo = math.radians(lat), math.radians(lon)
     return math.cos(la) * math.cos(lo), math.cos(la) * math.sin(lo), math.sin(la)
 
 
-class MarketClearing:
-    """Prices per resource x region by tatonnement; jobs served by bid density, placed on the cheapest satellite."""
+# -- pricing modes ------------------------------------------------------------------------------------------------
+class Prices:
+    """Per-good prices for one tick, in $ per natural unit (see REF)."""
 
-    name = "market"
-    router = "congestion"
-
-    def __init__(self):
-        self.p = {r: np.full(len(REGIONS), REF[r]) for r in RES}
-
-    def order(self, jobs):
-        return sorted(jobs, key=lambda j: -j["value"] / max(j["ref_cost"], 1e-9))
-
-    def sat_prices(self, region, reserve):
-        """Per-satellite compute, memory and storage price this tick: the regional price, never below the owner's offer."""
-        return np.maximum(self.p["compute"][region], reserve), self.p["memory"][region], self.p["storage"][region]
-
-    def pick(self, cost, cand, geo, job):
-        return int(np.argmin(cost))
-
-    def update(self, pressure):
-        """Tatonnement on excess demand, with a floor that rises with load: an idle region sells at 30 % of the
-        anchor, a full one cannot drop below it, and unmet demand pushes the price up from there without limit
-        short of 100x."""
-        for r in RES:
-            z = pressure[r]
-            ok = np.isfinite(z)
-            step = np.exp(ETA * np.clip(z[ok] - TARGET_UTIL, -1, 2))
-            floor = REF[r] * (0.3 + 0.7 * np.minimum(z[ok], 1))
-            self.p[r][ok] = np.clip(self.p[r][ok] * step, floor, 100 * REF[r])
+    def __init__(self, cpu, mem, sto, isl, dl, gs):
+        self.cpu, self.mem, self.sto, self.isl, self.dl, self.gs = cpu, mem, sto, isl, dl, gs
 
 
-class FixedFCFS(MarketClearing):
-    """Baseline: posted reference prices, first come first served, nearest feasible satellite, shortest-path routes."""
+class Posted:
+    """A. Online exponential posted price per good (Awerbuch-Azar-Plotkin; Zhou-Chakrabarty-Lukose 2008).
 
-    name = "baseline"
-    router = "distance"
+    p(u) = L for u <= c, (L/e)(U e/L)^u above, c = 1/(1 + ln(U/L)); L = owners' floor, U = the 99th percentile of
+    recent bid densities, so the last unit of any good goes only to a job that would pay the top of the market.
+    Jobs are price takers in arrival order: take the cheapest feasible option, served iff value >= its price."""
+
+    name, label, router = "posted", "Posted", "price"
+
+    def __init__(self, n_sats, n_isl, n_gs):
+        self.densities = deque([5.0], maxlen=3000)
+
+    @property
+    def U(self):
+        return float(np.clip(np.percentile(self.densities, 99), 3.0, 200.0))
+
+    def curve(self, u):
+        L, U = L_MULT, self.U
+        c = 1 / (1 + math.log(U / L))
+        u = np.clip(u, 0, 1)
+        return np.where(u <= c, L, (L / math.e) * (U * math.e / L) ** u)
+
+    def observe(self, job):
+        self.densities.append(job["value"] / max(job["ref_cost"], 1e-9))
+
+    def prices(self, eng, geo, reserve):
+        u = eng.utilization()
+        return Prices(np.maximum(REF["compute"] * self.curve(u["cpu"]), reserve),
+                      REF["memory"] * self.curve(u["mem"]), REF["storage"] * self.curve(u["sto"]),
+                      REF["isl"] * self.curve(u["isl"]),
+                      REF["downlink"] / 2 * self.curve(u["dl"]), REF["downlink"] / 2 * self.curve(u["gs"]))
+
+    def reprice(self, eng, pr, s, reserve):
+        """After a sale on satellite s its goods are fuller: move its prices up the curve within the tick."""
+        pr.cpu[s] = max(REF["compute"] * float(self.curve(eng.units_used[s] / max(eng.cap_units[s], 1e-9))), reserve[s])
+        pr.mem[s] = REF["memory"] * float(self.curve(eng.mem_used[s] / eng.fleet.mem[s]))
+        pr.sto[s] = REF["storage"] * float(self.curve(eng.sto_used[s] / eng.fleet.storage[s]))
 
     def order(self, jobs):
         return sorted(jobs, key=lambda j: j["arrival"])
 
-    def sat_prices(self, region, reserve):
-        return self.p["compute"][region], self.p["memory"][region], self.p["storage"][region]
+    def accept(self, job, price):
+        return job["value"] >= price
 
-    def pick(self, cost, cand, geo, job):
-        if job.get("location") is None:
-            return 0
-        return int(np.argmax(geo.unit[cand] @ np.array(_unit(*job["location"]))))
-
-    def update(self, pressure):
+    def update(self, eng):
         pass
 
 
-CLEARING = {"market": MarketClearing, "baseline": FixedFCFS}
+class BatchAuction(Posted):
+    """C. Per-tick batch auction, greedy by value/sqrt(bundle size) (Lehmann-O'Callaghan-Shoham 2002).
+
+    Each tick all bids are ranked, winners take capacity in that order, and a winner pays its critical value: the
+    density of the first job it displaced times sqrt(its own size), never below the owners' floor. Placement uses
+    the posted curve only as a signal for which satellite is least loaded."""
+
+    name, label = "batch", "Batch auction"
+
+    def order(self, jobs):
+        return sorted(jobs, key=lambda j: -j["value"] / math.sqrt(bundle_size(j)))
+
+    def accept(self, job, price):
+        return job["value"] >= L_MULT * job["ref_cost"]
 
 
+class Tatonnement(Posted):
+    """B. Tatonnement per good (Low-Lapsley 1999 dual update): p <- max(L, p + gamma (D - C)/C) every tick.
+
+    D = served + unmet demand on that good. Prices are state, not a function of load, so they chase moving
+    satellites with a lag; that lag is the point of the comparison."""
+
+    name, label = "tatonnement", "Tatonnement"
+    GAMMA = 0.15
+
+    def __init__(self, n_sats, n_isl, n_gs):
+        super().__init__(n_sats, n_isl, n_gs)
+        self.m = {k: np.ones(n) for k, n in (("cpu", n_sats), ("mem", n_sats), ("sto", n_sats), ("isl", n_isl),
+                                              ("dl", n_sats), ("gs", n_gs))}
+
+    def prices(self, eng, geo, reserve):
+        m = self.m
+        return Prices(np.maximum(REF["compute"] * m["cpu"], reserve), REF["memory"] * m["mem"],
+                      REF["storage"] * m["sto"], REF["isl"] * m["isl"], REF["downlink"] / 2 * m["dl"],
+                      REF["downlink"] / 2 * m["gs"])
+
+    def reprice(self, eng, pr, s, reserve):
+        pass
+
+    def update(self, eng):
+        d = eng.demand_ratio()
+        for k, z in d.items():
+            self.m[k] = np.clip(self.m[k] + self.GAMMA * (z - 1), L_MULT, 100)
+
+
+class Fixed(Posted):
+    """Baseline: anchor prices everywhere, first come first served, nearest satellite, shortest-delay routes."""
+
+    name, label, router = "fixed", "Fixed + FIFO", "distance"
+
+    def prices(self, eng, geo, reserve):
+        n, e, g = eng.con.n_sats, len(eng.con.isl_u), len(eng.con.gs_lat)
+        return Prices(np.full(n, REF["compute"]), np.full(n, REF["memory"]), np.full(n, REF["storage"]),
+                      np.full(e, REF["isl"]), np.full(n, REF["downlink"] / 2), np.full(g, REF["downlink"] / 2))
+
+    def reprice(self, eng, pr, s, reserve):
+        pass
+
+
+MODES = {c.name: c for c in (Posted, BatchAuction, Tatonnement, Fixed)}
+
+
+# -- engine -------------------------------------------------------------------------------------------------------
 class Engine:
-    def __init__(self, con, clearing):
+    def __init__(self, con, mode):
         self.con = con
-        self.clear = clearing
-        n = con.n_sats
+        n, e, g = con.n_sats, len(con.isl_u), len(con.gs_lat)
+        self.mode = MODES[mode](n, e, g)
         self.fleet = ph.Fleet(con)
-        self.units_used = np.zeros(n)
-        self.mem_used = np.zeros(n)
-        self.sto_used = np.zeros(n)
+        self.units_used, self.mem_used, self.sto_used = np.zeros(n), np.zeros(n), np.zeros(n)
         self.cap_units = self.fleet.units.copy()
         self.tasks, self.flows, self.pending = [], [], []
-        self.prev_load = (np.zeros(len(con.isl_u)), np.zeros(n), np.zeros(len(con.gs_lat)))
-        self.done = []          # (t, value, on_time, kind)
-        self.revenue = 0.0
+        self.prev_load = (np.zeros(e), np.zeros(n), np.zeros(g))
+        self.unmet = self._zero_unmet()
+        self.done = deque()       # (t, value, on_time, kind, customer)
+        self.lat_ms = deque()     # (t, ms) of admitted latency-bound jobs
+        self.paid = deque()       # (t, $)
         self.net = None
-        self.pressure = {r: np.zeros(len(REGIONS)) for r in RES}
-        self.binding = {"power": 0.0, "thermal": 0.0}
-        self.reserve = np.array([OWNER_MARKUP[o] for o in con.owner]) * 0.45
+        self.pr = None
+        self.weather = "off"
+        self.wx_backlog = np.zeros(n)
+        self.wx_flows = {}
+        self.wx_stats = deque()   # (t, raw GB made, GB delivered, $ paid)
+        self.wx_sats = np.nonzero(np.isin(con.shell, WEATHER_SHELLS))[0]
+        self.reserve_base = np.array([OWNER_MARKUP[o] for o in con.owner]) * 0.45
+
+    def _zero_unmet(self):
+        n, e, g = self.con.n_sats, len(self.con.isl_u), len(self.con.gs_lat)
+        return {"cpu": np.zeros(n), "mem": np.zeros(n), "sto": np.zeros(n), "isl": np.zeros(e), "dl": np.zeros(n),
+                "gs": np.zeros(g)}
+
+    # -- state the pricing modes read -----------------------------------------------------------------------------
+    def capacities(self):
+        net = self.net
+        return {"cpu": np.maximum(self.cap_units, 1e-9), "mem": self.fleet.mem, "sto": self.fleet.storage,
+                "isl": np.maximum(net.isl_cap_all, 1e-9) if net else np.ones(len(self.con.isl_u)),
+                "dl": np.full(self.con.n_sats, ph.DOWNLINK_GBPS),
+                "gs": np.full(len(self.con.gs_lat), ph.GS_ANTENNAS * ph.DOWNLINK_GBPS)}
+
+    def used(self):
+        isl, dl, gs = self.prev_load
+        return {"cpu": np.minimum(self.units_used, self.cap_units), "mem": self.mem_used, "sto": self.sto_used,
+                "isl": isl, "dl": dl, "gs": gs}
+
+    def utilization(self):
+        c, u = self.capacities(), self.used()
+        return {k: np.clip(u[k] / c[k], 0, 1) for k in c}
+
+    def demand_ratio(self):
+        c, u = self.capacities(), self.used()
+        return {k: (u[k] + self.unmet[k]) / c[k] for k in c}
 
     # -- one tick -------------------------------------------------------------------------------------------------
     def tick(self, geo, dt, arrivals):
         now = geo.t
-        cap, power_cap, thermal_cap = self.fleet.step(geo.sunlit, self.units_used, dt)
-        self.cap_units = cap
-        self.binding = {"power": float((power_cap < self.units_used + 1).mean()),
-                        "thermal": float((thermal_cap < self.units_used + 1).mean())}
+        wx_units = np.zeros(self.con.n_sats)
+        if self.weather == "ai":
+            wx_units[self.wx_sats] = WEATHER_AI_UNITS
+        cap, _, _ = self.fleet.step(geo.sunlit, self.units_used + wx_units, dt)
+        self.cap_units = np.maximum(cap - wx_units, 0)
         self._progress_tasks(now, dt)
-        self.net = Network(self.con, geo, self.fleet, self.prev_load, ROUTERS[self.clear.router])
+        reserve = self.reserve_base * (1 + ph.UNIT_W * self.fleet.energy_shadow_price(geo.sunlit) / 0.45)
+        self.pr = self.mode.prices(self, geo, reserve)
+        self.net = Network(self.con, geo, self.fleet, self.prev_load, ROUTERS[self.mode.router], self.pr)
+        for j in arrivals:
+            self.mode.observe(j)
         self.pending.extend(arrivals)
-        unmet = {r: np.zeros(len(REGIONS)) for r in RES}
-        self._clear_pending(geo, now, dt, unmet)
-        self._move_bits(geo, now, dt, unmet)
+        self.unmet = self._zero_unmet()
+        self._weather(now, dt)
+        self._clear_pending(geo, now, dt, reserve)
+        self._move_bits(geo, now, dt)
         self.prev_load = self.net.loads()
-        self._pressure(geo, unmet)
-        self.clear.update(self.pressure)
+        self.mode.update(self)
         cutoff = now - 3600
-        self.done = [d for d in self.done if d[0] > cutoff]
+        for q in (self.done, self.lat_ms, self.paid, self.wx_stats):
+            while q and q[0][0] < cutoff:
+                q.popleft()
 
     def _progress_tasks(self, now, dt):
         rate = np.minimum(1.0, self.cap_units / np.maximum(self.units_used, 1e-9))
@@ -267,10 +413,9 @@ class Engine:
             if t["left"] > 0:
                 keep.append(t)
                 continue
-            s = t["sat"]
-            self.units_used[s] -= t["units"]
-            self.mem_used[s] -= t["mem"]
-            job = t["job"]
+            s, job = t["sat"], t["job"]
+            self.units_used[s] -= job["units"]
+            self.mem_used[s] -= job["mem"]
             if job["out_gb"] > 0.01:
                 self.sto_used[s] -= job["storage_gb"] - job["out_gb"]
                 self.flows.append(dict(job=job, sat=s, gb_left=job["out_gb"], hold_gb=job["out_gb"]))
@@ -279,66 +424,136 @@ class Engine:
                 self._finish(job, now)
         self.tasks = keep
         np.maximum(self.units_used, 0, out=self.units_used)
+        np.maximum(self.mem_used, 0, out=self.mem_used)
         np.maximum(self.sto_used, 0, out=self.sto_used)
 
     def _finish(self, job, now, ok=True):
         on_time = ok and now <= job["deadline"] + 1
         job["result"] = {"t": now, "on_time": on_time}
-        self.done.append((now, job["value"], on_time, job["kind"]))
+        self.done.append((now, job["value"], on_time, job["kind"], job.get("customer")))
 
-    def _clear_pending(self, geo, now, dt, unmet):
-        keep = []
+    def _weather(self, now, dt):
+        """Weather satellites make raw data every tick; raw goes down as is, 'ai' shrinks it onboard first."""
+        if self.weather == "off":
+            return
+        made = WEATHER_RAW_MBPS * dt / 8000
+        down = made / (WEATHER_AI_RATIO if self.weather == "ai" else 1)
+        s = self.wx_sats
+        room = np.maximum(self.fleet.storage[s] - self.sto_used[s], 0)
+        add = np.minimum(down, room)
+        self.wx_backlog[s] += add
+        self.sto_used[s] += add
+        self.wx_stats.append((now, made * len(s), 0.0, 0.0))
+        for sat in s[self.wx_backlog[s] > 1e-6].tolist():
+            f = self.wx_flows.get(sat)
+            if f is None:
+                job = dict(id=f"wx-{sat}", kind="weather", arrival=now, units=0, mem=0, storage_gb=0, duration=0,
+                           out_gb=0, value=0, ref_cost=1, deadline=now + 1800)
+                f = self.wx_flows[sat] = dict(job=job, sat=sat, hold_gb=0, weather=True)
+                self.flows.append(f)
+            f["gb_left"] = self.wx_backlog[sat]
+            f["job"]["deadline"] = now + 1800
+            f["job"]["value"] = WEATHER_VALUE_PER_GB * f["gb_left"]
+            f["job"]["ref_cost"] = REF["downlink"] * f["gb_left"]
+
+    def _candidates(self, geo, job):
+        if job.get("sat") is not None:
+            return np.array([job["sat"]])
+        loc = job.get("location")
+        if loc is None:
+            return None
+        return geo.within_km(*loc, IMAGER_KM if job["kind"] == "image" else FOOTPRINT_KM)
+
+    def _clear_pending(self, geo, now, dt, reserve):
+        keep, winners = [], []
+        pr, mode = self.pr, self.mode
         free_u = self.cap_units - self.units_used
         free_m = self.fleet.mem - self.mem_used
         free_s = self.fleet.storage - self.sto_used
-        reserve = self.reserve * (1 + ph.UNIT_W * self.fleet.energy_shadow_price(geo.sunlit) / 0.45)
-        p_cpu, p_mem, p_sto = self.clear.sat_prices(geo.region, reserve)
-        p_dl = float(np.median(self.clear.p["downlink"]))
-        everywhere = np.arange(self.con.n_sats)
-        for job in self.clear.order(self.pending):
+        ground = self.net.ground_cost
+        batch = isinstance(mode, BatchAuction)
+        for job in mode.order(self.pending):
             if now + job["duration"] > job["deadline"]:
                 self._finish(job, now, ok=False)
                 continue
-            if job["kind"] == "relay":
-                if not self._admit_relay(geo, job, now, unmet):
-                    keep.append(job)
-                continue
-            loc = job.get("location")
-            cand = geo.within_km(*loc, FOOTPRINT_KM) if loc is not None else everywhere
-            if len(cand) == 0:
+            if job.get("next_try", 0) > now or job.get("start_after", 0) > now:
                 keep.append(job)
                 continue
-            fit = cand[(free_u[cand] >= job["units"]) & (free_m[cand] >= job["mem"]) &
-                       (free_s[cand] >= job["storage_gb"])]
+            job["next_try"] = now + RETRY_S
+            if job["kind"] == "relay":
+                if not self._admit_relay(geo, job, now):
+                    keep.append(job)
+                continue
+            cand = self._candidates(geo, job)
+            if cand is None:
+                fit = np.nonzero((free_u >= job["units"]) & (free_m >= job["mem"]) & (free_s >= job["storage_gb"]))[0]
+            else:
+                fit = cand[(free_u[cand] >= job["units"]) & (free_m[cand] >= job["mem"]) &
+                           (free_s[cand] >= job["storage_gb"])] if len(cand) else cand
+            if job["out_gb"] > 0 and len(fit):
+                fit = fit[np.isfinite(ground[fit])]
             if len(fit) == 0:
-                reg = geo.region[cand[0]]
-                for r, amt in (("compute", job["units"]), ("memory", job["mem"]), ("storage", job["storage_gb"])):
-                    unmet[r][reg] += amt
+                if cand is not None and len(cand):
+                    s0 = int(cand[0])
+                    self.unmet["cpu"][s0] += job["units"]
+                    self.unmet["mem"][s0] += job["mem"]
+                    self.unmet["sto"][s0] += job["storage_gb"]
+                if batch and winners:
+                    self._displaced(job, winners, cand)
                 keep.append(job)
                 continue
             h = job["duration"] / 3600
-            cost = (job["units"] * h * p_cpu[fit] + job["mem"] * h * p_mem[fit]
-                    + job["storage_gb"] / 1000 * max(h, 0.5) * p_sto[fit] + job["out_gb"] * p_dl)
-            i = self.clear.pick(cost, fit, geo, job)
+            cost = (job["units"] * h * pr.cpu[fit] + job["mem"] * h * pr.mem[fit]
+                    + job["storage_gb"] / 1000 * max(h, 0.5) * pr.sto[fit] + job["out_gb"] * ground[fit])
+            if mode.name != "fixed":
+                i = int(np.argmin(cost))
+            elif job.get("location"):
+                i = int(np.argmax(geo.unit[fit] @ np.array(_unit(*job["location"]))))
+            else:
+                i = 0
             s, price = int(fit[i]), float(cost[i])
-            if price > job["value"]:
-                keep.append(job)    # waits for a cheaper tick or its deadline
+            if not mode.accept(job, price):
+                if job["deadline"] - now > RETRY_S + job["duration"]:
+                    keep.append(job)    # re-bids later; long deadlines wait for a cheaper tick
+                else:
+                    self._finish(job, now, ok=False)
                 continue
-            self.revenue += price
             job["placed"] = {"sat": s, "price": round(price, 4), "t": now}
+            if batch:
+                job["crit"] = 0.0
+                winners.append((job, s))
+            else:
+                self.paid.append((now, price))
             free_u[s] -= job["units"]
             free_m[s] -= job["mem"]
             free_s[s] -= job["storage_gb"]
             self.units_used[s] += job["units"]
             self.mem_used[s] += job["mem"]
             self.sto_used[s] += job["storage_gb"]
+            mode.reprice(self, pr, s, reserve)
+            if job["kind"] == "edge":
+                d = float(np.linalg.norm(geo.ecef[s] - RE * np.array(_unit(*job["location"]))))
+                self.lat_ms.append((now, 2000 * d / C_KM_S))
             if job["duration"] > 0:
-                self.tasks.append(dict(job=job, sat=s, units=job["units"], mem=job["mem"], left=job["duration"]))
+                self.tasks.append(dict(job=job, sat=s, left=job["duration"]))
             else:
                 self.flows.append(dict(job=job, sat=s, gb_left=job["out_gb"], hold_gb=job["storage_gb"]))
+        for job, s in winners:
+            pay = max(job["crit"], L_MULT * job["ref_cost"])
+            job["placed"]["price"] = round(pay, 4)
+            self.paid.append((now, pay))
         self.pending = keep
 
-    def _admit_relay(self, geo, job, now, unmet):
+    @staticmethod
+    def _displaced(job, winners, cand):
+        """Critical value: the latest winner that took capacity this job could have used pays at its density."""
+        dens = job["value"] / math.sqrt(bundle_size(job))
+        for w, s in reversed(winners[-50:]):
+            if cand is None or s in cand:
+                w["crit"] = max(w["crit"], dens * math.sqrt(bundle_size(w)))
+                return
+
+    def _admit_relay(self, geo, job, now):
         a = geo.within_km(*job["location"], FOOTPRINT_KM)
         b = geo.within_km(*job["dest"], FOOTPRINT_KM)
         if len(a) == 0 or len(b) == 0:
@@ -353,27 +568,33 @@ class Engine:
                          + 2 * 560 / C_KM_S * 1.5)   # up and down slant at ~45 deg elevation
         if lat_ms > bound:
             return False
-        reg = geo.region[sa]
-        price = job["out_gb"] * self.clear.p["isl"][reg] * (len(path) - 1)
-        if price > job["value"]:
+        price = job["out_gb"] * float(sum(self.pr.isl[i] for k, i in self.net.hops(path) if k == "isl"))
+        if not self.mode.accept(job, price):
             return False
         if self.net.residual(path) < job["gbps"]:
-            unmet["isl"][reg] += job["gbps"]
+            self.net.blame(path, job["gbps"], self.unmet)
             return False
-        self.revenue += price
+        self.paid.append((now, price))
+        self.lat_ms.append((now, lat_ms))
         job["placed"] = {"sat": sa, "price": round(price, 4), "t": now, "latency_ms": round(lat_ms, 1)}
         self.flows.append(dict(job=job, sat=sa, dst=sb, gb_left=job["out_gb"], hold_gb=0, start=now))
         return True
 
-    def _move_bits(self, geo, now, dt, unmet):
+    def _move_bits(self, geo, now, dt):
+        """Allocate this tick's link capacity to flows in mode order; nothing can take more than what is left."""
         keep = []
         relay_pairs = [(f["sat"], f["dst"]) for f in self.flows if "dst" in f]
         relay_paths = dict(zip(relay_pairs, self.net.paths_between(relay_pairs)))
-        for f in sorted(self.flows, key=self._flow_key):
+        fixed = self.mode.name == "fixed"
+        order = sorted(self.flows, key=(lambda f: f["job"]["arrival"]) if fixed else
+                       (lambda f: -f["job"]["value"] / max(f["job"]["ref_cost"], 1e-9)))
+        wx_down = wx_paid = 0.0
+        for f in order:
             job = f["job"]
-            path = relay_paths.get((f["sat"], f.get("dst"))) if "dst" in f else self.net.path_to_ground(f["sat"])
+            relay = "dst" in f
+            path = relay_paths.get((f["sat"], f["dst"])) if relay else self.net.path_to_ground(f["sat"])
             left_s = max(job["deadline"] - now, dt)
-            need = f["gb_left"] * 8 / left_s if "dst" not in f else job["gbps"]
+            need = job["gbps"] if relay else f["gb_left"] * 8 / left_s
             want = min(f["gb_left"] * 8 / dt, max(need, ph.DOWNLINK_GBPS))
             got = 0.0
             if path:
@@ -381,65 +602,88 @@ class Engine:
                 if got > 0:
                     self.net.take(path, got)
                 f["path"] = path
-            if got < need:
-                end = path[-1] - self.net.n if path and "dst" not in f else None
-                if end is not None:
-                    unmet["downlink"][self.con.gs_region[end]] += need - got
-                unmet["isl"][geo.region[f["sat"]]] += need - got
+                f["load"] = self.net.bottleneck_util(path)
+                if got < need:
+                    self.net.blame(path, need - got, self.unmet)
             f["rate"] = got
-            f["gb_left"] -= got * dt / 8
-            if f["gb_left"] <= 1e-6 or ("dst" in f and now >= job["deadline"]):
+            gb = got * dt / 8
+            f["gb_left"] -= gb
+            if f.get("weather"):
+                s = f["sat"]
+                self.wx_backlog[s] = max(0.0, self.wx_backlog[s] - gb)
+                self.sto_used[s] = max(0.0, self.sto_used[s] - gb)
+                wx_down += gb
+                wx_paid += gb * float(self.net.ground_cost[s]) if np.isfinite(self.net.ground_cost[s]) else 0
+                if self.weather == "off" or self.wx_backlog[s] <= 1e-6:
+                    self.wx_flows.pop(s, None)
+                    continue
+                keep.append(f)
+                continue
+            if f["gb_left"] <= 1e-6 or (relay and now >= job["deadline"]):
                 self.sto_used[f["sat"]] -= f["hold_gb"]
-                self._finish(job, now, ok=f["gb_left"] <= 0.05 * job["out_gb"])
+                self._finish(job, now, ok=f["gb_left"] <= 0.05 * max(job["out_gb"], 1e-9))
             elif now > job["deadline"] + 6 * 3600:
                 self.sto_used[f["sat"]] -= f["hold_gb"]
                 self._finish(job, now, ok=False)
             else:
                 keep.append(f)
+        if self.weather != "off" and self.wx_stats:
+            t, made, _, _ = self.wx_stats[-1]
+            self.wx_stats[-1] = (t, made, wx_down, wx_paid)
+        np.maximum(self.sto_used, 0, out=self.sto_used)
         self.flows = keep
 
-    def _flow_key(self, f):
-        j = f["job"]
-        if self.clear.name == "baseline":
-            return j["arrival"]
-        return -j["value"] / max(j["ref_cost"], 1e-9)
-
-    def _pressure(self, geo, unmet):
-        """(used + unmet) / capacity per resource and region: the excess-demand signal prices move on."""
+    # -- reporting ------------------------------------------------------------------------------------------------
+    def region_prices(self, geo):
+        """Capacity-weighted mean price of the goods over each region right now; None where a region has no station."""
         R = len(REGIONS)
         reg = geo.region
-        cnt = lambda w: np.bincount(reg, weights=w, minlength=R)
-        cap_u = cnt(self.cap_units)
-        out = {"compute": (cnt(np.minimum(self.units_used, self.cap_units)) + unmet["compute"]) / np.maximum(cap_u, 1),
-               "memory": (cnt(self.mem_used) + unmet["memory"]) / cnt(self.fleet.mem),
-               "storage": (cnt(self.sto_used) + unmet["storage"]) / cnt(self.fleet.storage)}
-        isl_load = self.prev_load[0]
-        ureg = reg[self.con.isl_u]
-        isl_cap = np.bincount(ureg, weights=self.net.isl_cap_all, minlength=R)
-        out["isl"] = (np.bincount(ureg, weights=isl_load, minlength=R) + unmet["isl"]) / np.maximum(isl_cap, 1e-6)
-        gsr = self.con.gs_region
-        gs_cap = np.bincount(gsr, weights=self.net.gs_cap, minlength=R)
-        dl = (np.bincount(gsr, weights=self.prev_load[2], minlength=R) + unmet["downlink"]) / np.maximum(gs_cap, 1e-9)
-        out["downlink"] = np.where(gs_cap > 0, dl, np.nan)
-        self.pressure = out
+        pr = self.pr
 
-    # -- reporting ------------------------------------------------------------------------------------------------
+        def mean(values, region, w):
+            s = np.bincount(region, weights=values * w, minlength=R)
+            n = np.bincount(region, weights=w, minlength=R)
+            return [round(float(a / b), 5) if b > 0 else None for a, b in zip(s, n)]
+
+        isl_up = self.net.isl_cap_all > 0
+        return {"compute": mean(pr.cpu, reg, self.fleet.units), "memory": mean(pr.mem, reg, self.fleet.mem),
+                "storage": mean(pr.sto * 1, reg, self.fleet.storage),
+                "isl": mean(pr.isl[isl_up], reg[self.con.isl_u[isl_up]], np.ones(int(isl_up.sum()))),
+                "downlink": mean(pr.gs + float(np.median(pr.dl)), self.con.gs_region, np.ones(len(pr.gs)))}
+
+    def resource_state(self):
+        """Per resource: utilization of the busiest 10 % of its goods (<= 1) and total demand / capacity."""
+        c, u = self.capacities(), self.used()
+        names = {"compute": "cpu", "memory": "mem", "storage": "sto", "isl": "isl", "downlink": "gs"}
+        out = {}
+        for r, k in names.items():
+            ok = c[k] > 1e-6
+            util = np.clip(u[k][ok] / c[k][ok], 0, 1)
+            top = np.sort(util)[-max(1, len(util) // 10):]
+            out[r] = {"util": round(float(util.mean()), 3), "hot": round(float(top.mean()), 3),
+                      "demand": round(float((u[k][ok].sum() + self.unmet[k][ok].sum()) / c[k][ok].sum()), 3)}
+        return out
+
     def metrics(self):
         d = self.done
         n = len(d)
         on = sum(1 for x in d if x[2])
-        return {"value_per_h": round(sum(x[1] for x in d if x[2])),
-                "on_time": round(on / n, 3) if n else None,
-                "jobs_per_h": n,
-                "compute_util": round(float(np.minimum(self.units_used, self.cap_units).sum() / self.fleet.units.sum()), 3),
-                "downlink_util": round(float(self.prev_load[2].sum() / self.net.gs_cap.sum()), 3) if self.net else 0,
-                "pending": len(self.pending), "running": len(self.tasks), "flows": len(self.flows)}
+        lat = sorted(x[1] for x in self.lat_ms)
+        rs = self.resource_state()
+        return {"welfare_per_h": round(sum(x[1] for x in d if x[2])),
+                "revenue_per_h": round(sum(x[1] for x in self.paid)),
+                "served": round(on / n, 3) if n else None,
+                "missed": round(1 - on / n, 3) if n else None,
+                "p99_latency_ms": round(lat[int(0.99 * (len(lat) - 1))], 1) if lat else None,
+                "binding": max(rs, key=lambda r: (rs[r]["hot"], rs[r]["demand"])),
+                "jobs_per_h": n, "waiting": len(self.pending), "running": len(self.tasks), "flows": len(self.flows)}
 
-    def global_pressure(self):
-        """Capacity-weighted pressure per resource across the whole cluster."""
-        out = {}
-        for r in RES:
-            z = self.pressure[r]
-            z = z[np.isfinite(z)]
-            out[r] = round(float(np.percentile(z, 75)), 3) if len(z) else 0.0
-        return out
+    def weather_metrics(self):
+        if not self.wx_stats:
+            return None
+        hours = max((self.wx_stats[-1][0] - self.wx_stats[0][0]) / 3600, 1 / 60)
+        made = sum(x[1] for x in self.wx_stats)
+        down = sum(x[2] for x in self.wx_stats)
+        return {"raw_gbps": round(made * 8 / hours / 3600, 1), "down_gbps": round(down * 8 / hours / 3600, 2),
+                "paid_per_h": round(sum(x[3] for x in self.wx_stats) / hours), "backlog_gb":
+                round(float(self.wx_backlog.sum()), 1), "sats": len(self.wx_sats)}

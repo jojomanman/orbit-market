@@ -1,0 +1,1875 @@
+[
+ {
+  "id": "us-nro",
+  "name": "US National Reconnaissance Office",
+  "country": "US",
+  "what_they_buy": "Commercial high-res optical and SAR tasking plus onboard processing to augment national systems worldwide.",
+  "annual_budget_usd": 150000000,
+  "budget_basis": "EOCL 10-yr contracts (May 2022): Maxar up to USD 3.24 bn, BlackSky up to 1.02 bn, Planet undisclosed, so >4.3 bn (~430 M/yr); assume ~1/3 could move to in-orbit compute/relay. https://www.cnbc.com/2022/05/25/nro-announces-satellite-imagery-contracts-to-maxar-planet-blacksky.html",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 3,
+     "isl_gb": 3,
+     "downlink_gb": 0.3
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 400,
+    "value_per_job_usd": 2500,
+    "price_elasticity": 0.3
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Middle East",
+     "E Asia",
+     "N Asia",
+     "Europe",
+     "N Pacific"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 8,
+     "isl_gb": 8,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 120,
+    "value_per_job_usd": 3500,
+    "price_elasticity": 0.3
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "E Asia",
+     "N Pacific",
+     "Middle East",
+     "N Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 20,
+     "mem_gb_h": 64,
+     "storage_gb": 15,
+     "isl_gb": 20,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 300
+    },
+    "deadline_s": 900,
+    "jobs_per_day": 30,
+    "value_per_job_usd": 8000,
+    "price_elasticity": 0.2
+   },
+   {
+    "type": "train_model",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 2000,
+     "mem_gb_h": 8000,
+     "storage_gb": 2000,
+     "isl_gb": 500,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 0.05,
+    "value_per_job_usd": 150000,
+    "price_elasticity": 0.7
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "crisis surge over a hotspot (strait, border, launch site)",
+    "multiplier": 4,
+    "when": "when a crisis starts, 2-8 weeks"
+   },
+   {
+    "trigger": "growth",
+    "what": "commercial share of collection keeps rising",
+    "multiplier": 1.15,
+    "when": "+15 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.cnbc.com/2022/05/25/nro-announces-satellite-imagery-contracts-to-maxar-planet-blacksky.html",
+   "https://www.nro.gov/Commercial-Systems-Program-Office/",
+   "https://en.wikipedia.org/wiki/National_Reconnaissance_Office"
+  ],
+  "unverified": [
+   "~1/3 share movable to this market",
+   "jobs_per_day and value_per_job are estimates from commercial tasking prices (~USD 25-50/km2 for 30 cm)"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "us-nga",
+  "name": "US National Geospatial-Intelligence Agency",
+  "country": "US",
+  "what_they_buy": "Analytic products: object detection, change detection and model training on commercial imagery.",
+  "annual_budget_usd": 80000000,
+  "budget_basis": "Luno A (~USD 290 M, 2024) and Luno B commercial analytics IDIQs plus Maven GEOINT AI; assume ~USD 80 M/yr of analytics could run in orbit. https://www.nga.mil/news/",
+  "jobs": [
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 4,
+     "mem_gb_h": 16,
+     "storage_gb": 3,
+     "isl_gb": 3,
+     "downlink_gb": 0.1
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 1800
+    },
+    "deadline_s": 7200,
+    "jobs_per_day": 600,
+    "value_per_job_usd": 600,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "train_model",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 2000,
+     "mem_gb_h": 8000,
+     "storage_gb": 2000,
+     "isl_gb": 500,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 0.2,
+    "value_per_job_usd": 120000,
+    "price_elasticity": 0.7
+   },
+   {
+    "type": "store",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 2,
+     "storage_gb": 2000,
+     "isl_gb": 0,
+     "downlink_gb": 0
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 3600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 5,
+    "value_per_job_usd": 400,
+    "price_elasticity": 0.9
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "foundation-model and new-sensor retraining wave",
+    "multiplier": 3,
+    "when": "after new sensor or target type, 1-3 months"
+   },
+   {
+    "trigger": "growth",
+    "what": "AI analytics budget growth",
+    "multiplier": 1.25,
+    "when": "+25 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.nga.mil/news/",
+   "https://en.wikipedia.org/wiki/National_Geospatial-Intelligence_Agency"
+  ],
+  "unverified": [
+   "Luno contract values from memory, not re-checked this run",
+   "share movable in orbit"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "us-sda",
+  "name": "US Space Development Agency (US Space Force)",
+  "country": "US",
+  "what_they_buy": "Low-latency relay of targeting and missile-tracking data across an optical ISL mesh to deployed forces.",
+  "annual_budget_usd": 120000000,
+  "budget_basis": "SDA budget ~USD 4-5 bn/yr, mostly own Transport/Tracking Layer satellites; assume ~3 % buys surge capacity from a commercial mesh (Hybrid Space Architecture interest). https://www.sda.mil/",
+  "jobs": [
+   {
+    "type": "relay_data",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.1,
+     "mem_gb_h": 0.5,
+     "storage_gb": 0,
+     "isl_gb": 1,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 10
+    },
+    "deadline_s": 300,
+    "jobs_per_day": 3000,
+    "value_per_job_usd": 300,
+    "price_elasticity": 0.1
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "Middle East",
+     "E Asia",
+     "N Asia",
+     "N Pacific",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 20,
+     "mem_gb_h": 64,
+     "storage_gb": 15,
+     "isl_gb": 20,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 30
+    },
+    "deadline_s": 900,
+    "jobs_per_day": 200,
+    "value_per_job_usd": 4000,
+    "price_elasticity": 0.2
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "exercise or missile event drives tracking and relay load",
+    "multiplier": 5,
+    "when": "exercises (e.g. Pacific summer), conflicts"
+   },
+   {
+    "trigger": "growth",
+    "what": "more tranches and users connect",
+    "multiplier": 1.3,
+    "when": "+30 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.sda.mil/",
+   "https://en.wikipedia.org/wiki/Space_Development_Agency"
+  ],
+  "unverified": [
+   "3 % commercial share",
+   "latency and job counts"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "us-coast-guard",
+  "name": "United States Coast Guard",
+  "country": "US",
+  "what_they_buy": "Dark-vessel detection (SAR + AIS + RF) for fisheries, drug interdiction and search and rescue.",
+  "annual_budget_usd": 12000000,
+  "budget_basis": "USCG ~USD 13-14 bn/yr total; commercial space-based MDA buys are small pilots; assume ~USD 12 M/yr. https://www.uscg.mil/",
+  "jobs": [
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N Pacific",
+     "S Pacific",
+     "N Atlantic",
+     "S America",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 20,
+     "mem_gb_h": 64,
+     "storage_gb": 15,
+     "isl_gb": 20,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 300
+    },
+    "deadline_s": 900,
+    "jobs_per_day": 60,
+    "value_per_job_usd": 1500,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N Pacific",
+     "N Atlantic",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 8,
+     "isl_gb": 8,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 20,
+    "value_per_job_usd": 2000,
+    "price_elasticity": 0.5
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Arctic patrol and Bering Sea fishing season",
+    "multiplier": 1.6,
+    "when": "Jun-Oct"
+   },
+   {
+    "trigger": "event",
+    "what": "SAR (search and rescue) after a hurricane or missing vessel",
+    "multiplier": 3,
+    "when": "hurricane season Aug-Oct, days"
+   }
+  ],
+  "sources": [
+   "https://www.uscg.mil/",
+   "https://en.wikipedia.org/wiki/United_States_Coast_Guard"
+  ],
+  "unverified": [
+   "budget share for space MDA",
+   "job counts"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "se-forsvarsmakten",
+  "name": "Swedish Armed Forces (Forsvarsmakten)",
+  "country": "SE",
+  "what_they_buy": "Own-region ISR over the Baltic and High North: SAR ship tracking, optical change detection, relay to units.",
+  "annual_budget_usd": 25000000,
+  "budget_basis": "Sweden's defence space push (first military satellite GNA-3 2024, Swedish defence space strategy); assume ~SEK 250 M/yr for commercial ISR/data services. https://www.forsvarsmakten.se/en/",
+  "jobs": [
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Europe",
+     "N Atlantic",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 8,
+     "isl_gb": 8,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 40,
+    "value_per_job_usd": 2000,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "Europe",
+     "N Atlantic",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 20,
+     "mem_gb_h": 64,
+     "storage_gb": 15,
+     "isl_gb": 20,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 300
+    },
+    "deadline_s": 900,
+    "jobs_per_day": 24,
+    "value_per_job_usd": 1500,
+    "price_elasticity": 0.3
+   },
+   {
+    "type": "relay_data",
+    "regions": [
+     "Europe",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.1,
+     "mem_gb_h": 0.5,
+     "storage_gb": 0,
+     "isl_gb": 2,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 60
+    },
+    "deadline_s": 300,
+    "jobs_per_day": 100,
+    "value_per_job_usd": 150,
+    "price_elasticity": 0.2
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "diurnal",
+    "what": "optical useless in polar night, shift to SAR",
+    "multiplier": 1.5,
+    "when": "Nov-Feb (SAR jobs)"
+   },
+   {
+    "trigger": "event",
+    "what": "Baltic cable or drone incident",
+    "multiplier": 3,
+    "when": "days to weeks after incident"
+   },
+   {
+    "trigger": "growth",
+    "what": "NATO integration and spending to 3.5 % GDP",
+    "multiplier": 1.2,
+    "when": "+20 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.forsvarsmakten.se/en/",
+   "https://en.wikipedia.org/wiki/Swedish_Armed_Forces"
+  ],
+  "unverified": [
+   "SEK 250 M/yr estimate",
+   "'Edda' programme named in the task not identified or verified"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "nato-ncia",
+  "name": "NATO (NCI Agency, APSS initiative)",
+  "country": "BE",
+  "what_they_buy": "Alliance Persistent Surveillance from Space: pooled commercial imagery and fused products for allies.",
+  "annual_budget_usd": 40000000,
+  "budget_basis": "APSS launched 2023 by 17 allies, ~EUR 1 bn of national contributions over ~5 yrs (mostly own sats); assume ~USD 40 M/yr for commercial data and processing. https://www.nato.int/cps/en/natohq/topics_175419.htm",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Europe",
+     "Middle East",
+     "Africa",
+     "N Atlantic",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 3,
+     "isl_gb": 3,
+     "downlink_gb": 0.3
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 150,
+    "value_per_job_usd": 2000,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Europe",
+     "N Atlantic",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 8,
+     "isl_gb": 8,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 60,
+    "value_per_job_usd": 2500,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "store",
+    "regions": [
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 2,
+     "storage_gb": 1000,
+     "isl_gb": 0,
+     "downlink_gb": 0
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 3600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 3,
+    "value_per_job_usd": 500,
+    "price_elasticity": 0.9
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "eastern flank incident or major exercise (Steadfast, Nordic Response)",
+    "multiplier": 3,
+    "when": "exercises Feb-Jun, crises"
+   },
+   {
+    "trigger": "growth",
+    "what": "more allies join APSS",
+    "multiplier": 1.2,
+    "when": "+20 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.nato.int/cps/en/natohq/topics_175419.htm",
+   "https://www.ncia.nato.int/"
+  ],
+  "unverified": [
+   "APSS money figures from memory",
+   "commercial share"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "eu-frontex",
+  "name": "Frontex (European Border and Coast Guard Agency)",
+  "country": "PL",
+  "what_they_buy": "Copernicus/EUROSUR Fusion Services: vessel detection and tracking at Mediterranean and Atlantic sea borders.",
+  "annual_budget_usd": 15000000,
+  "budget_basis": "Frontex budget ~EUR 920 M (2024); EUROSUR Fusion Services and Copernicus border surveillance are a few % of that; assume ~USD 15 M/yr. https://www.frontex.europa.eu/what-we-do/monitoring-and-risk-analysis/eurosur/",
+  "jobs": [
+   {
+    "type": "monitor_track",
+    "regions": [
+     "Europe",
+     "N Atlantic",
+     "Africa"
+    ],
+    "per_job": {
+     "cpu_core_h": 20,
+     "mem_gb_h": 64,
+     "storage_gb": 15,
+     "isl_gb": 20,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 300
+    },
+    "deadline_s": 900,
+    "jobs_per_day": 50,
+    "value_per_job_usd": 900,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Europe",
+     "Africa",
+     "N Atlantic"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 8,
+     "isl_gb": 8,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 30,
+    "value_per_job_usd": 1200,
+    "price_elasticity": 0.6
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Mediterranean crossings peak in calm weather",
+    "multiplier": 2,
+    "when": "May-Oct"
+   },
+   {
+    "trigger": "event",
+    "what": "shipwreck or mass departure",
+    "multiplier": 3,
+    "when": "days"
+   }
+  ],
+  "sources": [
+   "https://www.frontex.europa.eu/what-we-do/monitoring-and-risk-analysis/eurosur/",
+   "https://en.wikipedia.org/wiki/Frontex"
+  ],
+  "unverified": [
+   "space share of budget",
+   "job counts"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "eu-emsa",
+  "name": "European Maritime Safety Agency (CleanSeaNet)",
+  "country": "PT",
+  "what_they_buy": "SAR oil-spill and vessel detection with alerts to coastal states within ~30 min of acquisition.",
+  "annual_budget_usd": 10000000,
+  "budget_basis": "EMSA spends several EUR M/yr on CleanSeaNet SAR scenes (thousands of scenes/yr) under Copernicus delegation; assume ~USD 10 M/yr. https://www.emsa.europa.eu/csn-menu.html",
+  "jobs": [
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Europe",
+     "N Atlantic",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 8,
+     "isl_gb": 8,
+     "downlink_gb": 0.2
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 1800
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 25,
+    "value_per_job_usd": 1500,
+    "price_elasticity": 0.6
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "major spill or ship incident",
+    "multiplier": 4,
+    "when": "weeks after a spill"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "shipping and weather window",
+    "multiplier": 1.2,
+    "when": "Apr-Sep"
+   }
+  ],
+  "sources": [
+   "https://www.emsa.europa.eu/csn-menu.html",
+   "https://en.wikipedia.org/wiki/European_Maritime_Safety_Agency"
+  ],
+  "unverified": [
+   "CleanSeaNet spend",
+   "30 min delivery target from memory"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "eu-satcen",
+  "name": "European Union Satellite Centre (SatCen)",
+  "country": "ES",
+  "what_they_buy": "Geospatial intelligence products for EU CFSP missions, crisis maps and the Copernicus Security Service.",
+  "annual_budget_usd": 8000000,
+  "budget_basis": "SatCen budget ~EUR 20-25 M/yr plus Copernicus security tasks; assume ~USD 8 M/yr for imagery/processing. https://www.satcen.europa.eu/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Africa",
+     "Middle East",
+     "Europe",
+     "S Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 3,
+     "isl_gb": 3,
+     "downlink_gb": 0.3
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 30,
+    "value_per_job_usd": 1500,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Africa",
+     "Middle East",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 3,
+     "mem_gb_h": 12,
+     "storage_gb": 3,
+     "isl_gb": 3,
+     "downlink_gb": 0.2
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 3600
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 20,
+    "value_per_job_usd": 800,
+    "price_elasticity": 0.6
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "EU crisis activation (evacuation, conflict)",
+    "multiplier": 3,
+    "when": "weeks"
+   },
+   {
+    "trigger": "growth",
+    "what": "Copernicus security service expansion",
+    "multiplier": 1.1,
+    "when": "+10 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.satcen.europa.eu/",
+   "https://en.wikipedia.org/wiki/European_Union_Satellite_Centre"
+  ],
+  "unverified": [
+   "budget figure",
+   "job counts"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "jaxa",
+  "name": "Japan Aerospace Exploration Agency (JAXA)",
+  "country": "JP",
+  "what_they_buy": "Optical data relay and in-orbit storage for ALOS-4 SAR and disaster mapping for Japanese ministries.",
+  "annual_budget_usd": 20000000,
+  "budget_basis": "JAXA budget ~JPY 200-300 bn/yr; its own LUCAS optical relay exists, buys of commercial relay/compute assumed ~USD 20 M/yr. https://global.jaxa.jp/projects/sat/alos4/",
+  "jobs": [
+   {
+    "type": "downlink_bulk",
+    "regions": [
+     "E Asia",
+     "N Pacific",
+     "Oceania",
+     "S Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 150,
+     "isl_gb": 150,
+     "downlink_gb": 150
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 21600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 20,
+    "value_per_job_usd": 1500,
+    "price_elasticity": 0.7
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "E Asia",
+     "N Pacific"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 8,
+     "isl_gb": 8,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 15,
+    "value_per_job_usd": 1500,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "store",
+    "regions": [
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 2,
+     "storage_gb": 1000,
+     "isl_gb": 0,
+     "downlink_gb": 0
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 3600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 2,
+    "value_per_job_usd": 300,
+    "price_elasticity": 0.9
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "earthquake, tsunami or typhoon emergency observation",
+    "multiplier": 5,
+    "when": "days after event"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "typhoon and heavy-rain season",
+    "multiplier": 1.5,
+    "when": "Jun-Oct"
+   }
+  ],
+  "sources": [
+   "https://global.jaxa.jp/projects/sat/alos4/",
+   "https://en.wikipedia.org/wiki/JAXA"
+  ],
+  "unverified": [
+   "commercial share of budget",
+   "volumes"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "esa",
+  "name": "European Space Agency",
+  "country": "FR",
+  "what_they_buy": "Onboard AI demos (Phi-sat lineage), data relay tests and model training on in-orbit archives.",
+  "annual_budget_usd": 6000000,
+  "budget_basis": "ESA budget ~EUR 7.7 bn (2024); Phi-lab, InCubed and onboard-AI programmes are tens of EUR M/yr; assume ~USD 6 M/yr buys in-orbit compute/relay as a service. https://www.esa.int/Applications/Observing_the_Earth/Phsat",
+  "jobs": [
+   {
+    "type": "train_model",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 2000,
+     "mem_gb_h": 8000,
+     "storage_gb": 2000,
+     "isl_gb": 500,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 0.1,
+    "value_per_job_usd": 60000,
+    "price_elasticity": 0.8
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Europe",
+     "Africa"
+    ],
+    "per_job": {
+     "cpu_core_h": 4,
+     "mem_gb_h": 16,
+     "storage_gb": 3,
+     "isl_gb": 3,
+     "downlink_gb": 0.1
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 3600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 40,
+    "value_per_job_usd": 300,
+    "price_elasticity": 0.9
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "ministerial council funds new demo missions",
+    "multiplier": 1.5,
+    "when": "after Ministerial (Nov 2025, next ~2028)"
+   },
+   {
+    "trigger": "growth",
+    "what": "onboard AI programmes",
+    "multiplier": 1.2,
+    "when": "+20 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.esa.int/Applications/Observing_the_Earth/Phsat",
+   "https://www.esa.int/"
+  ],
+  "unverified": [
+   "programme spend",
+   "job counts"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "uk-mod",
+  "name": "UK Ministry of Defence (UK Space Command)",
+  "country": "GB",
+  "what_they_buy": "Sovereign ISR augmentation (ISTARI, Oberon) and fast relay to deployed forces.",
+  "annual_budget_usd": 35000000,
+  "budget_basis": "UK Defence Space Strategy: ~GBP 970 M over 10 yrs for ISTARI ISR constellation; assume ~USD 35 M/yr commercial data/compute. https://www.gov.uk/government/publications/defence-space-strategy-operationalising-the-space-domain",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Europe",
+     "Middle East",
+     "Africa",
+     "Indian Ocean"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 3,
+     "isl_gb": 3,
+     "downlink_gb": 0.3
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 80,
+    "value_per_job_usd": 2000,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Europe",
+     "N Atlantic",
+     "Middle East"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 8,
+     "isl_gb": 8,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 30,
+    "value_per_job_usd": 2500,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "relay_data",
+    "regions": [
+     "Middle East",
+     "Indian Ocean",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.1,
+     "mem_gb_h": 0.5,
+     "storage_gb": 0,
+     "isl_gb": 2,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 60
+    },
+    "deadline_s": 300,
+    "jobs_per_day": 200,
+    "value_per_job_usd": 200,
+    "price_elasticity": 0.2
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Red Sea or eastern flank operation",
+    "multiplier": 3,
+    "when": "weeks to months"
+   },
+   {
+    "trigger": "growth",
+    "what": "defence spending to 2.5-3.5 % GDP",
+    "multiplier": 1.15,
+    "when": "+15 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.gov.uk/government/publications/defence-space-strategy-operationalising-the-space-domain",
+   "https://en.wikipedia.org/wiki/UK_Space_Command"
+  ],
+  "unverified": [
+   "annual share of the GBP 970 M",
+   "job counts"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "fr-cde",
+  "name": "French Space Command (Commandement de l'Espace)",
+  "country": "FR",
+  "what_they_buy": "Commercial SAR/optical complement to CSO and IRIS, plus space surveillance tracking.",
+  "annual_budget_usd": 30000000,
+  "budget_basis": "Military programming law 2024-2030 gives ~EUR 6 bn to space (~EUR 0.85 bn/yr), mostly own systems; assume ~USD 30 M/yr commercial. https://www.defense.gouv.fr/cde",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Africa",
+     "Middle East",
+     "Europe",
+     "Indian Ocean"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 3,
+     "isl_gb": 3,
+     "downlink_gb": 0.3
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 60,
+    "value_per_job_usd": 2000,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "Africa",
+     "Indian Ocean",
+     "S Pacific"
+    ],
+    "per_job": {
+     "cpu_core_h": 20,
+     "mem_gb_h": 64,
+     "storage_gb": 15,
+     "isl_gb": 20,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 300
+    },
+    "deadline_s": 900,
+    "jobs_per_day": 15,
+    "value_per_job_usd": 3000,
+    "price_elasticity": 0.3
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Sahel/Middle East operation or evacuation",
+    "multiplier": 3,
+    "when": "weeks"
+   },
+   {
+    "trigger": "growth",
+    "what": "LPM space ramp",
+    "multiplier": 1.1,
+    "when": "+10 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.defense.gouv.fr/cde",
+   "https://en.wikipedia.org/wiki/Commandement_de_l%27espace"
+  ],
+  "unverified": [
+   "LPM space figure from memory",
+   "commercial share"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "de-bundeswehr",
+  "name": "German Bundeswehr (Weltraumkommando, BAAINBw)",
+  "country": "DE",
+  "what_they_buy": "SAR reconnaissance augmentation (beside SARah) and secure relay for NATO eastern flank units.",
+  "annual_budget_usd": 35000000,
+  "budget_basis": "Pistorius (Sep 2025): EUR 35 bn for military space by 2030; assume ~0.5 %/yr (~USD 35 M) to commercial data/compute services. https://defence-industry.eu/germany-to-invest-e35-billion-in-space-defence-capabilities-by-2030-says-defence-minister/",
+  "jobs": [
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Europe",
+     "N Atlantic",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 8,
+     "isl_gb": 8,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 50,
+    "value_per_job_usd": 2500,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "relay_data",
+    "regions": [
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.1,
+     "mem_gb_h": 0.5,
+     "storage_gb": 0,
+     "isl_gb": 2,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 60
+    },
+    "deadline_s": 300,
+    "jobs_per_day": 300,
+    "value_per_job_usd": 150,
+    "price_elasticity": 0.2
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "growth",
+    "what": "EUR 35 bn space plan ramps",
+    "multiplier": 1.4,
+    "when": "+40 %/yr to 2030"
+   },
+   {
+    "trigger": "event",
+    "what": "Lithuania brigade or Baltic incident",
+    "multiplier": 2.5,
+    "when": "weeks"
+   }
+  ],
+  "sources": [
+   "https://defence-industry.eu/germany-to-invest-e35-billion-in-space-defence-capabilities-by-2030-says-defence-minister/",
+   "https://www.bundeswehr.de/de/organisation/weltraumkommando-der-bundeswehr",
+   "https://en.wikipedia.org/wiki/Bundeswehr_Space_Command"
+  ],
+  "unverified": [
+   "0.5 % share"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "ua-mod",
+  "name": "Ministry of Defence of Ukraine (with GUR)",
+  "country": "UA",
+  "what_they_buy": "Near-real-time SAR change detection and target tracking over the front line, relayed to units in minutes.",
+  "annual_budget_usd": 30000000,
+  "budget_basis": "Ukraine buys ICEYE SAR access (satellite + archive deal via Prytula Foundation 2022, ~EUR 16 M) and donor-funded imagery; assume ~USD 30 M/yr. https://en.wikipedia.org/wiki/ICEYE",
+  "jobs": [
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 8,
+     "isl_gb": 8,
+     "downlink_gb": 0.2
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 600
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 150,
+    "value_per_job_usd": 1500,
+    "price_elasticity": 0.2
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 20,
+     "mem_gb_h": 64,
+     "storage_gb": 15,
+     "isl_gb": 20,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 120
+    },
+    "deadline_s": 900,
+    "jobs_per_day": 48,
+    "value_per_job_usd": 2000,
+    "price_elasticity": 0.2
+   },
+   {
+    "type": "relay_data",
+    "regions": [
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.1,
+     "mem_gb_h": 0.5,
+     "storage_gb": 0,
+     "isl_gb": 0.5,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 30
+    },
+    "deadline_s": 300,
+    "jobs_per_day": 500,
+    "value_per_job_usd": 100,
+    "price_elasticity": 0.1
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "offensive or major strike wave",
+    "multiplier": 3,
+    "when": "weeks"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "mud season limits ground movement",
+    "multiplier": 0.7,
+    "when": "Mar-Apr, Nov"
+   },
+   {
+    "trigger": "event",
+    "what": "ceasefire monitoring shifts to tracking",
+    "multiplier": 1.5,
+    "when": "if a ceasefire holds"
+   }
+  ],
+  "sources": [
+   "https://en.wikipedia.org/wiki/ICEYE",
+   "https://www.mil.gov.ua/en/"
+  ],
+  "unverified": [
+   "ongoing annual spend",
+   "job counts"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "au-defence",
+  "name": "Australian Department of Defence (Defence Space Command)",
+  "country": "AU",
+  "what_they_buy": "Wide-area maritime surveillance of northern approaches and the Indo-Pacific; SAR ship tracking.",
+  "annual_budget_usd": 25000000,
+  "budget_basis": "DEF-799 sovereign ISR satellite programme (~AUD 1 bn+) cancelled 2024 in favour of allied/commercial access; assume ~USD 25 M/yr commercial. https://www.defence.gov.au/about/who-we-are/organisation-structure/defence-space-command",
+  "jobs": [
+   {
+    "type": "monitor_track",
+    "regions": [
+     "Oceania",
+     "Indian Ocean",
+     "S Pacific",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 20,
+     "mem_gb_h": 64,
+     "storage_gb": 15,
+     "isl_gb": 20,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 300
+    },
+    "deadline_s": 900,
+    "jobs_per_day": 40,
+    "value_per_job_usd": 2000,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Oceania",
+     "Indian Ocean",
+     "S Pacific"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 8,
+     "isl_gb": 8,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 30,
+    "value_per_job_usd": 2000,
+    "price_elasticity": 0.4
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "illegal fishing and cyclone season north of Australia",
+    "multiplier": 1.4,
+    "when": "Nov-Apr"
+   },
+   {
+    "trigger": "event",
+    "what": "South China Sea or Pacific island incident",
+    "multiplier": 2.5,
+    "when": "weeks"
+   }
+  ],
+  "sources": [
+   "https://www.defence.gov.au/about/who-we-are/organisation-structure/defence-space-command",
+   "https://en.wikipedia.org/wiki/Defence_Space_Command"
+  ],
+  "unverified": [
+   "DEF-799 value and cancellation details",
+   "commercial spend"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "ca-dnd",
+  "name": "Canadian Department of National Defence",
+  "country": "CA",
+  "what_they_buy": "Arctic sovereignty: SAR ship detection in the Northwest Passage plus relay from polar regions.",
+  "annual_budget_usd": 20000000,
+  "budget_basis": "DND uses RADARSAT Constellation Mission data and funds the Defence Enhanced Surveillance from Space project; assume ~USD 20 M/yr commercial. https://www.asc-csa.gc.ca/eng/satellites/radarsat/",
+  "jobs": [
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Polar",
+     "N Atlantic",
+     "N Pacific",
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 8,
+     "isl_gb": 8,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 35,
+    "value_per_job_usd": 1800,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "downlink_bulk",
+    "regions": [
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 100,
+     "isl_gb": 100,
+     "downlink_gb": 100
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 21600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 5,
+    "value_per_job_usd": 1000,
+    "price_elasticity": 0.6
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "open water in the Arctic means more shipping",
+    "multiplier": 2.5,
+    "when": "Jul-Oct"
+   },
+   {
+    "trigger": "growth",
+    "what": "NORAD modernisation and Arctic spending",
+    "multiplier": 1.15,
+    "when": "+15 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.asc-csa.gc.ca/eng/satellites/radarsat/",
+   "https://en.wikipedia.org/wiki/RADARSAT_Constellation"
+  ],
+  "unverified": [
+   "commercial spend",
+   "job counts"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "in-dsa",
+  "name": "Indian Defence Space Agency",
+  "country": "IN",
+  "what_they_buy": "Surveillance of land borders and Indian Ocean; onboard processing to cut downlink to Indian ground stations.",
+  "annual_budget_usd": 30000000,
+  "budget_basis": "SBS-III: 52 surveillance satellites approved Oct 2024, INR 26,968 crore (~USD 3.2 bn), 31 built by private firms, all up by 2029; assume ~1 %/yr commercial services. https://en.wikipedia.org/wiki/Space_Based_Surveillance_project_(India)",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "S Asia",
+     "N Asia",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 3,
+     "isl_gb": 3,
+     "downlink_gb": 0.3
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 80,
+    "value_per_job_usd": 1200,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "Indian Ocean",
+     "S Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 20,
+     "mem_gb_h": 64,
+     "storage_gb": 15,
+     "isl_gb": 20,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 300
+    },
+    "deadline_s": 900,
+    "jobs_per_day": 30,
+    "value_per_job_usd": 1500,
+    "price_elasticity": 0.5
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "LAC or LoC standoff",
+    "multiplier": 3,
+    "when": "weeks to months"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "monsoon cloud cover pushes optical to SAR",
+    "multiplier": 0.6,
+    "when": "Jun-Sep (optical jobs)"
+   }
+  ],
+  "sources": [
+   "https://en.wikipedia.org/wiki/Space_Based_Surveillance_project_(India)",
+   "https://en.wikipedia.org/wiki/Defence_Space_Agency"
+  ],
+  "unverified": [
+   "commercial share"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "il-imod",
+  "name": "Israel Ministry of Defense (Space and Satellite Administration)",
+  "country": "IL",
+  "what_they_buy": "High-revisit optical and SAR over the Middle East with minute-level delivery to the IDF.",
+  "annual_budget_usd": 25000000,
+  "budget_basis": "Own Ofek/TecSAR fleet; since 2023 heavy commercial imagery buys during operations; assume ~USD 25 M/yr. https://en.wikipedia.org/wiki/Ofeq",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Middle East"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 3,
+     "isl_gb": 3,
+     "downlink_gb": 0.3
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 300
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 150,
+    "value_per_job_usd": 1200,
+    "price_elasticity": 0.3
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Middle East"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 8,
+     "isl_gb": 8,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 60,
+    "value_per_job_usd": 1500,
+    "price_elasticity": 0.3
+   },
+   {
+    "type": "relay_data",
+    "regions": [
+     "Middle East"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.1,
+     "mem_gb_h": 0.5,
+     "storage_gb": 0,
+     "isl_gb": 1,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 30
+    },
+    "deadline_s": 300,
+    "jobs_per_day": 300,
+    "value_per_job_usd": 150,
+    "price_elasticity": 0.1
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "active conflict or missile exchange",
+    "multiplier": 4,
+    "when": "days to months"
+   },
+   {
+    "trigger": "diurnal",
+    "what": "night ops shift optical to SAR",
+    "multiplier": 1.3,
+    "when": "local night (SAR jobs)"
+   }
+  ],
+  "sources": [
+   "https://en.wikipedia.org/wiki/Ofeq",
+   "https://english.mod.gov.il/"
+  ],
+  "unverified": [
+   "commercial spend",
+   "job counts"
+  ],
+  "domain": "defence-security"
+ },
+ {
+  "id": "jp-mod",
+  "name": "Japan Ministry of Defense (JSDF)",
+  "country": "JP",
+  "what_they_buy": "Detection and tracking of ships and launch sites for stand-off defence targeting; SAR constellation via commercial providers.",
+  "annual_budget_usd": 60000000,
+  "budget_basis": "FY2025 budget funds a commercial-built satellite constellation for stand-off defence (~JPY 280 bn over several yrs, ~USD 1.8 bn); assume ~USD 60 M/yr for compute/relay services. https://www.mod.go.jp/en/",
+  "jobs": [
+   {
+    "type": "monitor_track",
+    "regions": [
+     "E Asia",
+     "N Pacific",
+     "N Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 20,
+     "mem_gb_h": 64,
+     "storage_gb": 15,
+     "isl_gb": 20,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 120
+    },
+    "deadline_s": 900,
+    "jobs_per_day": 80,
+    "value_per_job_usd": 3000,
+    "price_elasticity": 0.3
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "E Asia",
+     "N Pacific",
+     "N Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 8,
+     "isl_gb": 8,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 80,
+    "value_per_job_usd": 2000,
+    "price_elasticity": 0.3
+   },
+   {
+    "type": "relay_data",
+    "regions": [
+     "E Asia",
+     "N Pacific"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.1,
+     "mem_gb_h": 0.5,
+     "storage_gb": 0,
+     "isl_gb": 1,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 20
+    },
+    "deadline_s": 300,
+    "jobs_per_day": 400,
+    "value_per_job_usd": 200,
+    "price_elasticity": 0.1
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "missile launch or Taiwan Strait exercise",
+    "multiplier": 4,
+    "when": "days to weeks"
+   },
+   {
+    "trigger": "growth",
+    "what": "constellation rollout",
+    "multiplier": 1.3,
+    "when": "+30 %/yr to 2028"
+   }
+  ],
+  "sources": [
+   "https://www.mod.go.jp/en/",
+   "https://en.wikipedia.org/wiki/Japan_Self-Defense_Forces"
+  ],
+  "unverified": [
+   "JPY 280 bn figure from memory",
+   "commercial share"
+  ],
+  "domain": "defence-security"
+ }
+]

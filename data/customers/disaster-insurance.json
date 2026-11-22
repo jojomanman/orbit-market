@@ -1,0 +1,1669 @@
+[
+ {
+  "id": "copernicus-ems",
+  "name": "Copernicus Emergency Management Service (European Commission JRC)",
+  "domain": "disaster-insurance",
+  "country": "IT",
+  "what_they_buy": "Rapid post-disaster mapping of floods, fires, quakes and storms for EU and partner civil protection",
+  "annual_budget_usd": 12000000,
+  "budget_basis": "Share of Copernicus 2021-2027 EUR 5.4 bn programme; Rapid Mapping ran 69 activations in 2024 (ESA), assumed ~EUR 150k imagery+processing each. https://www.esa.int/ESA_Multimedia/Images/2025/01/Care2",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 24,
+     "mem_gb_h": 96,
+     "storage_gb": 40,
+     "isl_gb": 30,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 10800
+    },
+    "deadline_s": 43200,
+    "jobs_per_day": 0.2,
+    "value_per_job_usd": 40000,
+    "price_elasticity": 0.3
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Europe",
+     "Africa",
+     "Middle East"
+    ],
+    "per_job": {
+     "cpu_core_h": 16,
+     "mem_gb_h": 64,
+     "storage_gb": 25,
+     "isl_gb": 20,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 7200
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 0.5,
+    "value_per_job_usd": 8000,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 1,
+     "isl_gb": 1,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 20,
+    "value_per_job_usd": 150,
+    "price_elasticity": 0.8
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "major earthquake triggers rapid damage mapping of the affected cities",
+    "multiplier": 8.0,
+    "when": "within 72 h after an M6.5+ quake near population"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "European floods and Mediterranean wildfires",
+    "multiplier": 2.0,
+    "when": "Sep-Nov floods, Jul-Aug fires"
+   }
+  ],
+  "sources": [
+   "https://emergency.copernicus.eu/mapping/",
+   "https://www.esa.int/ESA_Multimedia/Images/2025/01/Care2",
+   "https://www.copernicus.eu/en/about-copernicus"
+  ],
+  "unverified": [
+   "EUR 150k per activation",
+   "Copernicus 2021-2027 EUR 5.4 bn from memory, not rechecked",
+   "budget share for this market"
+  ]
+ },
+ {
+  "id": "intl-charter-space-disasters",
+  "name": "International Charter Space and Major Disasters",
+  "domain": "disaster-insurance",
+  "country": "FR",
+  "what_they_buy": "Tasked imagery over a disaster zone within hours of an activation by an authorised user",
+  "annual_budget_usd": 6000000,
+  "budget_basis": "Members donate tasking in kind; ~50 activations/yr valued at ~USD 120k of tasking each. https://disasterscharter.org/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 24,
+     "mem_gb_h": 96,
+     "storage_gb": 40,
+     "isl_gb": 30,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 14400
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 0.15,
+    "value_per_job_usd": 60000,
+    "price_elasticity": 0.2
+   },
+   {
+    "type": "downlink_bulk",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 300,
+     "isl_gb": 50,
+     "downlink_gb": 250
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 21600
+    },
+    "deadline_s": 172800,
+    "jobs_per_day": 0.15,
+    "value_per_job_usd": 5000,
+    "price_elasticity": 0.5
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "major earthquake triggers rapid damage mapping of the affected cities",
+    "multiplier": 8.0,
+    "when": "within 72 h after an M6.5+ quake near population"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "Atlantic hurricane season raises storm tracking and post-landfall mapping",
+    "multiplier": 3.0,
+    "when": "Jun-Nov, peak Aug-Oct"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "South Asian monsoon floods",
+    "multiplier": 2.5,
+    "when": "Jun-Sep"
+   }
+  ],
+  "sources": [
+   "https://disasterscharter.org/",
+   "https://disasterscharter.org/web/guest/activations/charter-activations"
+  ],
+  "unverified": [
+   "value per tasking",
+   "activations ~50/yr"
+  ]
+ },
+ {
+  "id": "unosat",
+  "name": "UNOSAT (UNITAR Satellite Centre)",
+  "domain": "disaster-insurance",
+  "country": "CH",
+  "what_they_buy": "Damage assessments and flood/displacement maps for UN agencies and humanitarian coordination",
+  "annual_budget_usd": 2500000,
+  "budget_basis": "UNITAR is a small agency funded by donor projects; assumed ~USD 2.5M/yr on imagery and processing. https://unosat.org/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "S America"
+    ],
+    "per_job": {
+     "cpu_core_h": 24,
+     "mem_gb_h": 96,
+     "storage_gb": 40,
+     "isl_gb": 30,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 21600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 0.2,
+    "value_per_job_usd": 25000,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Middle East",
+     "Africa"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 10,
+     "isl_gb": 4,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 3600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 4,
+    "value_per_job_usd": 600,
+    "price_elasticity": 0.9
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "major earthquake triggers rapid damage mapping of the affected cities",
+    "multiplier": 8.0,
+    "when": "within 72 h after an M6.5+ quake near population"
+   },
+   {
+    "trigger": "event",
+    "what": "conflict escalation drives repeated building-damage assessments",
+    "multiplier": 3.0,
+    "when": "weeks after an escalation"
+   }
+  ],
+  "sources": [
+   "https://unosat.org/",
+   "https://unitar.org/sustainable-development-goals/satellite-analysis-and-applied-research"
+  ],
+  "unverified": [
+   "annual imagery budget"
+  ]
+ },
+ {
+  "id": "un-spider",
+  "name": "UN-SPIDER (UN Office for Outer Space Affairs)",
+  "domain": "disaster-insurance",
+  "country": "AT",
+  "what_they_buy": "Space-based disaster information brokered to national disaster agencies in developing countries",
+  "annual_budget_usd": 400000,
+  "budget_basis": "Small UNOOSA programme; mostly brokers free data, assumed small paid share. https://www.un-spider.org/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Africa",
+     "S Asia",
+     "S America",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 10,
+     "isl_gb": 4,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 43200
+    },
+    "deadline_s": 172800,
+    "jobs_per_day": 0.5,
+    "value_per_job_usd": 2000,
+    "price_elasticity": 1.5
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "South Asian monsoon floods",
+    "multiplier": 2.5,
+    "when": "Jun-Sep"
+   },
+   {
+    "trigger": "growth",
+    "what": "more member states using space data in national plans",
+    "multiplier": 1.1,
+    "when": "+10 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.un-spider.org/"
+  ],
+  "unverified": [
+   "budget entirely estimated"
+  ]
+ },
+ {
+  "id": "fema",
+  "name": "US Federal Emergency Management Agency (FEMA)",
+  "domain": "disaster-insurance",
+  "country": "US",
+  "what_they_buy": "Hurricane, flood and wildfire damage imagery and building-level assessments for aid and claims",
+  "annual_budget_usd": 25000000,
+  "budget_basis": "FEMA spends tens of billions on disaster relief; geospatial imagery and analytics assumed ~USD 25M/yr. https://www.fema.gov/about/reports-and-data/geospatial",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "N Atlantic"
+    ],
+    "per_job": {
+     "cpu_core_h": 24,
+     "mem_gb_h": 96,
+     "storage_gb": 40,
+     "isl_gb": 30,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 7200
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 0.8,
+    "value_per_job_usd": 50000,
+    "price_elasticity": 0.2
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 10,
+     "isl_gb": 4,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 1800
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 30,
+    "value_per_job_usd": 800,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N Atlantic",
+     "N America",
+     "N Pacific"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 1,
+     "isl_gb": 1,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 600
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 48,
+    "value_per_job_usd": 200,
+    "price_elasticity": 0.3
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Atlantic hurricane season raises storm tracking and post-landfall mapping",
+    "multiplier": 3.0,
+    "when": "Jun-Nov, peak Aug-Oct"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "wildfire season, fire-front tracking and burn-scar mapping",
+    "multiplier": 2.5,
+    "when": "Jun-Oct northern hemisphere, Dec-Mar Australia"
+   },
+   {
+    "trigger": "event",
+    "what": "presidential disaster declaration scales imagery for the whole declared area",
+    "multiplier": 5.0,
+    "when": "days after declaration"
+   }
+  ],
+  "sources": [
+   "https://www.fema.gov/about/reports-and-data/geospatial",
+   "https://www.fema.gov/disaster/declarations"
+  ],
+  "unverified": [
+   "imagery spend figure"
+  ]
+ },
+ {
+  "id": "ifrc",
+  "name": "International Federation of Red Cross and Red Crescent Societies (IFRC)",
+  "domain": "disaster-insurance",
+  "country": "CH",
+  "what_they_buy": "Forecast-based action triggers and damage maps to direct relief and anticipatory cash",
+  "annual_budget_usd": 1500000,
+  "budget_basis": "IFRC appeals ~CHF 1 bn/yr; geospatial/forecast-based financing assumed ~0.15 %. https://www.ifrc.org/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Africa",
+     "S Asia",
+     "E Asia",
+     "S America",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 10,
+     "isl_gb": 4,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 21600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 2,
+    "value_per_job_usd": 1500,
+    "price_elasticity": 1.2
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "N Atlantic"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 1,
+     "isl_gb": 1,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 1800
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 12,
+    "value_per_job_usd": 100,
+    "price_elasticity": 1.0
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "South Asian monsoon floods",
+    "multiplier": 2.5,
+    "when": "Jun-Sep"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "cyclone seasons trigger anticipatory action checks",
+    "multiplier": 2.0,
+    "when": "Apr-Dec Bay of Bengal and W Pacific"
+   }
+  ],
+  "sources": [
+   "https://www.ifrc.org/",
+   "https://www.anticipation-hub.org/"
+  ],
+  "unverified": [
+   "geospatial budget share"
+  ]
+ },
+ {
+  "id": "wfp",
+  "name": "UN World Food Programme (WFP)",
+  "domain": "disaster-insurance",
+  "country": "IT",
+  "what_they_buy": "Crop, drought and flood monitoring plus access-route damage maps for food operations",
+  "annual_budget_usd": 4000000,
+  "budget_basis": "WFP funding ~USD 8-10 bn/yr; HungerMap/ADAM geospatial assumed ~USD 4M. https://hungermap.wfp.org/",
+  "jobs": [
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Africa",
+     "Middle East",
+     "S Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 10,
+     "isl_gb": 4,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 21600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 20,
+    "value_per_job_usd": 300,
+    "price_elasticity": 0.8
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "Africa",
+     "Middle East",
+     "S Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 24,
+     "mem_gb_h": 96,
+     "storage_gb": 40,
+     "isl_gb": 30,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 43200
+    },
+    "deadline_s": 172800,
+    "jobs_per_day": 0.1,
+    "value_per_job_usd": 15000,
+    "price_elasticity": 0.6
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "crop season monitoring in the Sahel and Horn of Africa",
+    "multiplier": 1.8,
+    "when": "Jun-Oct"
+   },
+   {
+    "trigger": "event",
+    "what": "drought declarations expand monitoring area",
+    "multiplier": 2.5,
+    "when": "after failed rains"
+   }
+  ],
+  "sources": [
+   "https://hungermap.wfp.org/",
+   "https://www.wfp.org/funding-and-donors"
+  ],
+  "unverified": [
+   "geospatial budget"
+  ]
+ },
+ {
+  "id": "world-bank-gfdrr",
+  "name": "World Bank GFDRR (Global Facility for Disaster Reduction and Recovery)",
+  "domain": "disaster-insurance",
+  "country": "US",
+  "what_they_buy": "Post-disaster damage estimates (GRADE) and exposure data for recovery financing",
+  "annual_budget_usd": 3000000,
+  "budget_basis": "GFDRR grants ~USD 100M/yr; data and rapid damage work assumed ~3 %. https://www.gfdrr.org/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 24,
+     "mem_gb_h": 96,
+     "storage_gb": 40,
+     "isl_gb": 30,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 86400
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 0.05,
+    "value_per_job_usd": 30000,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "downlink_bulk",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 300,
+     "isl_gb": 50,
+     "downlink_gb": 250
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 43200
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 0.3,
+    "value_per_job_usd": 3000,
+    "price_elasticity": 0.7
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "major earthquake triggers rapid damage mapping of the affected cities",
+    "multiplier": 8.0,
+    "when": "within 72 h after an M6.5+ quake near population"
+   },
+   {
+    "trigger": "growth",
+    "what": "more countries buy cat risk models for development loans",
+    "multiplier": 1.08,
+    "when": "+8 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.gfdrr.org/",
+   "https://www.gfdrr.org/en/disaster-assessment"
+  ],
+  "unverified": [
+   "budget share"
+  ]
+ },
+ {
+  "id": "swiss-re",
+  "name": "Swiss Re",
+  "domain": "disaster-insurance",
+  "country": "CH",
+  "what_they_buy": "Event footprints and exposure imagery to settle reinsurance losses and price cat risk",
+  "annual_budget_usd": 8000000,
+  "budget_basis": "Reinsurer with ~USD 45 bn premiums; sigma 1/2025: 2024 global insured nat cat losses USD 137 bn, ~145 bn trend for 2025; EO/analytics assumed ~USD 8M. https://www.swissre.com/institute/research/sigma-research/sigma-2025-01-natural-catastrophes-trend.html",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "Europe",
+     "E Asia",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 24,
+     "mem_gb_h": 96,
+     "storage_gb": 40,
+     "isl_gb": 30,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 43200
+    },
+    "deadline_s": 259200,
+    "jobs_per_day": 0.3,
+    "value_per_job_usd": 60000,
+    "price_elasticity": 0.3
+   },
+   {
+    "type": "train_model",
+    "regions": [
+     "N America",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 400,
+     "mem_gb_h": 3000,
+     "storage_gb": 2000,
+     "isl_gb": 200,
+     "downlink_gb": 5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 1209600,
+    "jobs_per_day": 0.02,
+    "value_per_job_usd": 200000,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "downlink_bulk",
+    "regions": [
+     "N America",
+     "Europe",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 300,
+     "isl_gb": 50,
+     "downlink_gb": 250
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 43200
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 1,
+    "value_per_job_usd": 2500,
+    "price_elasticity": 0.8
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Atlantic hurricane season raises storm tracking and post-landfall mapping",
+    "multiplier": 3.0,
+    "when": "Jun-Nov, peak Aug-Oct"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "1 Jan and 1 Jun renewals drive model retraining and exposure refresh",
+    "multiplier": 2.0,
+    "when": "Oct-Dec and Apr-May"
+   }
+  ],
+  "sources": [
+   "https://www.swissre.com/institute/research/sigma-research/sigma-2025-01-natural-catastrophes-trend.html",
+   "https://www.swissre.com/investors/financial-information.html"
+  ],
+  "unverified": [
+   "EO/analytics spend",
+   "premium figure approximate"
+  ]
+ },
+ {
+  "id": "munich-re",
+  "name": "Munich Re",
+  "domain": "disaster-insurance",
+  "country": "DE",
+  "what_they_buy": "Hazard footprints, NatCat loss data and parametric triggers for reinsurance",
+  "annual_budget_usd": 8000000,
+  "budget_basis": "Largest reinsurer by premiums (~EUR 60 bn group); runs NatCatSERVICE; EO spend assumed ~USD 8M. https://www.munichre.com/en/risks/natural-disasters.html",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "Europe",
+     "E Asia",
+     "S Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 24,
+     "mem_gb_h": 96,
+     "storage_gb": 40,
+     "isl_gb": 30,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 43200
+    },
+    "deadline_s": 259200,
+    "jobs_per_day": 0.3,
+    "value_per_job_usd": 55000,
+    "price_elasticity": 0.3
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N Atlantic",
+     "N Pacific",
+     "Indian Ocean"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 1,
+     "isl_gb": 1,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 1800
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 24,
+    "value_per_job_usd": 250,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "train_model",
+    "regions": [
+     "Europe",
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 400,
+     "mem_gb_h": 3000,
+     "storage_gb": 2000,
+     "isl_gb": 200,
+     "downlink_gb": 5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 1209600,
+    "jobs_per_day": 0.02,
+    "value_per_job_usd": 180000,
+    "price_elasticity": 0.6
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Atlantic hurricane season raises storm tracking and post-landfall mapping",
+    "multiplier": 3.0,
+    "when": "Jun-Nov, peak Aug-Oct"
+   },
+   {
+    "trigger": "event",
+    "what": "major earthquake triggers rapid damage mapping of the affected cities",
+    "multiplier": 8.0,
+    "when": "within 72 h after an M6.5+ quake near population"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "1 Jan renewal season",
+    "multiplier": 1.8,
+    "when": "Oct-Dec"
+   }
+  ],
+  "sources": [
+   "https://www.munichre.com/en/risks/natural-disasters.html",
+   "https://www.munichre.com/en/company/investors.html"
+  ],
+  "unverified": [
+   "EO spend"
+  ]
+ },
+ {
+  "id": "hannover-re",
+  "name": "Hannover Re",
+  "domain": "disaster-insurance",
+  "country": "DE",
+  "what_they_buy": "Loss footprints and exposure checks on property cat treaties",
+  "annual_budget_usd": 4000000,
+  "budget_basis": "Third-largest reinsurer; assumed half of Swiss Re/Munich Re EO spend. https://www.hannover-re.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "Europe",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 24,
+     "mem_gb_h": 96,
+     "storage_gb": 40,
+     "isl_gb": 30,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 86400
+    },
+    "deadline_s": 432000,
+    "jobs_per_day": 0.2,
+    "value_per_job_usd": 40000,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "downlink_bulk",
+    "regions": [
+     "N America",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 300,
+     "isl_gb": 50,
+     "downlink_gb": 250
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 0.5,
+    "value_per_job_usd": 2000,
+    "price_elasticity": 0.9
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Atlantic hurricane season raises storm tracking and post-landfall mapping",
+    "multiplier": 3.0,
+    "when": "Jun-Nov, peak Aug-Oct"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "1 Jan renewals",
+    "multiplier": 1.6,
+    "when": "Oct-Dec"
+   }
+  ],
+  "sources": [
+   "https://www.hannover-re.com/"
+  ],
+  "unverified": [
+   "EO spend"
+  ]
+ },
+ {
+  "id": "scor",
+  "name": "SCOR",
+  "domain": "disaster-insurance",
+  "country": "FR",
+  "what_they_buy": "Cat event footprints and agricultural/parametric index data",
+  "annual_budget_usd": 3000000,
+  "budget_basis": "Mid-size global reinsurer with an agri and parametric book; EO spend assumed. https://www.scor.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Europe",
+     "N America",
+     "S America",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 24,
+     "mem_gb_h": 96,
+     "storage_gb": 40,
+     "isl_gb": 30,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 86400
+    },
+    "deadline_s": 432000,
+    "jobs_per_day": 0.15,
+    "value_per_job_usd": 35000,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "S America",
+     "S Asia",
+     "Africa"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 10,
+     "isl_gb": 4,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 21600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 10,
+    "value_per_job_usd": 250,
+    "price_elasticity": 0.9
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "crop season index monitoring",
+    "multiplier": 1.7,
+    "when": "Nov-Mar S America, Jun-Sep S Asia"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "Atlantic hurricane season raises storm tracking and post-landfall mapping",
+    "multiplier": 3.0,
+    "when": "Jun-Nov, peak Aug-Oct"
+   }
+  ],
+  "sources": [
+   "https://www.scor.com/"
+  ],
+  "unverified": [
+   "EO spend"
+  ]
+ },
+ {
+  "id": "verisk-extreme-event",
+  "name": "Verisk Extreme Event Solutions (ex-AIR Worldwide, PCS)",
+  "domain": "disaster-insurance",
+  "country": "US",
+  "what_they_buy": "Imagery for PCS loss estimates and catastrophe model calibration",
+  "annual_budget_usd": 10000000,
+  "budget_basis": "Leading cat-model vendor; PCS loss figures underpin many cat bonds; imagery and processing assumed ~USD 10M. https://www.verisk.com/insurance/products/property-claim-services/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "E Asia",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 24,
+     "mem_gb_h": 96,
+     "storage_gb": 40,
+     "isl_gb": 30,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 21600
+    },
+    "deadline_s": 172800,
+    "jobs_per_day": 0.4,
+    "value_per_job_usd": 45000,
+    "price_elasticity": 0.3
+   },
+   {
+    "type": "train_model",
+    "regions": [
+     "N America",
+     "E Asia",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 400,
+     "mem_gb_h": 3000,
+     "storage_gb": 2000,
+     "isl_gb": 200,
+     "downlink_gb": 5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 2592000,
+    "jobs_per_day": 0.03,
+    "value_per_job_usd": 250000,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "store",
+    "regions": [
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 0,
+     "mem_gb_h": 0,
+     "storage_gb": 5000,
+     "isl_gb": 0,
+     "downlink_gb": 0
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 2592000,
+    "jobs_per_day": 0.1,
+    "value_per_job_usd": 1500,
+    "price_elasticity": 1.0
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Atlantic hurricane season raises storm tracking and post-landfall mapping",
+    "multiplier": 3.0,
+    "when": "Jun-Nov, peak Aug-Oct"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "wildfire season, fire-front tracking and burn-scar mapping",
+    "multiplier": 2.5,
+    "when": "Jun-Oct northern hemisphere, Dec-Mar Australia"
+   },
+   {
+    "trigger": "growth",
+    "what": "climate-conditioned model releases",
+    "multiplier": 1.15,
+    "when": "+15 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.verisk.com/insurance/products/property-claim-services/",
+   "https://www.verisk.com/insurance/capabilities/catastrophe-modeling/"
+  ],
+  "unverified": [
+   "imagery spend"
+  ]
+ },
+ {
+  "id": "moodys-rms",
+  "name": "Moody's RMS",
+  "domain": "disaster-insurance",
+  "country": "US",
+  "what_they_buy": "Event response footprints and exposure imagery for cat models and industry loss estimates",
+  "annual_budget_usd": 8000000,
+  "budget_basis": "Second major cat-model vendor; spend assumed slightly below Verisk. https://www.moodys.com/web/en/us/capabilities/catastrophe-risk.html",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "Europe",
+     "E Asia",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 24,
+     "mem_gb_h": 96,
+     "storage_gb": 40,
+     "isl_gb": 30,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 21600
+    },
+    "deadline_s": 172800,
+    "jobs_per_day": 0.35,
+    "value_per_job_usd": 40000,
+    "price_elasticity": 0.3
+   },
+   {
+    "type": "train_model",
+    "regions": [
+     "N America",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 400,
+     "mem_gb_h": 3000,
+     "storage_gb": 2000,
+     "isl_gb": 200,
+     "downlink_gb": 5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 2592000,
+    "jobs_per_day": 0.03,
+    "value_per_job_usd": 220000,
+    "price_elasticity": 0.5
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Atlantic hurricane season raises storm tracking and post-landfall mapping",
+    "multiplier": 3.0,
+    "when": "Jun-Nov, peak Aug-Oct"
+   },
+   {
+    "trigger": "event",
+    "what": "major earthquake triggers rapid damage mapping of the affected cities",
+    "multiplier": 8.0,
+    "when": "within 72 h after an M6.5+ quake near population"
+   }
+  ],
+  "sources": [
+   "https://www.moodys.com/web/en/us/capabilities/catastrophe-risk.html"
+  ],
+  "unverified": [
+   "imagery spend"
+  ]
+ },
+ {
+  "id": "aon-impact-forecasting",
+  "name": "Aon (Impact Forecasting / Aon Reinsurance Solutions)",
+  "domain": "disaster-insurance",
+  "country": "GB",
+  "what_they_buy": "Event footprints for client loss estimates and cat bond placement",
+  "annual_budget_usd": 5000000,
+  "budget_basis": "Largest reinsurance broker; Impact Forecasting builds cat models; EO spend assumed. https://www.aon.com/reinsurance/impact-forecasting",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "Europe",
+     "E Asia",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 24,
+     "mem_gb_h": 96,
+     "storage_gb": 40,
+     "isl_gb": 30,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 43200
+    },
+    "deadline_s": 259200,
+    "jobs_per_day": 0.2,
+    "value_per_job_usd": 30000,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "downlink_bulk",
+    "regions": [
+     "N America",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 300,
+     "isl_gb": 50,
+     "downlink_gb": 250
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 43200
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 0.5,
+    "value_per_job_usd": 2000,
+    "price_elasticity": 0.8
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Atlantic hurricane season raises storm tracking and post-landfall mapping",
+    "multiplier": 3.0,
+    "when": "Jun-Nov, peak Aug-Oct"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "1 Jan and mid-year renewals",
+    "multiplier": 1.6,
+    "when": "Oct-Dec, Apr-Jun"
+   }
+  ],
+  "sources": [
+   "https://www.aon.com/reinsurance/impact-forecasting"
+  ],
+  "unverified": [
+   "EO spend"
+  ]
+ },
+ {
+  "id": "descartes-underwriting",
+  "name": "Descartes Underwriting",
+  "domain": "disaster-insurance",
+  "country": "FR",
+  "what_they_buy": "Satellite-measured parametric triggers (flood extent, wind, crop) that pay out automatically",
+  "annual_budget_usd": 2000000,
+  "budget_basis": "Parametric MGA built on EO and climate data; scale-up stage, spend assumed. https://descartesunderwriting.com/",
+  "jobs": [
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America",
+     "Europe",
+     "S America",
+     "S Asia",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 16,
+     "mem_gb_h": 64,
+     "storage_gb": 25,
+     "isl_gb": 20,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 3600
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 3,
+    "value_per_job_usd": 3000,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N Atlantic",
+     "N Pacific",
+     "S Pacific"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 1,
+     "isl_gb": 1,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 24,
+    "value_per_job_usd": 80,
+    "price_elasticity": 0.7
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Atlantic hurricane season raises storm tracking and post-landfall mapping",
+    "multiplier": 3.0,
+    "when": "Jun-Nov, peak Aug-Oct"
+   },
+   {
+    "trigger": "growth",
+    "what": "parametric book growth",
+    "multiplier": 1.4,
+    "when": "+40 %/yr"
+   }
+  ],
+  "sources": [
+   "https://descartesunderwriting.com/"
+  ],
+  "unverified": [
+   "spend",
+   "growth rate"
+  ]
+ },
+ {
+  "id": "ccrif-spc",
+  "name": "CCRIF SPC (Caribbean Catastrophe Risk Insurance Facility)",
+  "domain": "disaster-insurance",
+  "country": "KY",
+  "what_they_buy": "Hurricane wind, storm surge and excess-rain footprints to compute parametric payouts to member governments",
+  "annual_budget_usd": 1000000,
+  "budget_basis": "Parametric pool for Caribbean and Central American governments; small analytics budget assumed. https://www.ccrif.org/",
+  "jobs": [
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N Atlantic",
+     "S America",
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 1,
+     "isl_gb": 1,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 600
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 30,
+    "value_per_job_usd": 150,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N Atlantic",
+     "S America"
+    ],
+    "per_job": {
+     "cpu_core_h": 16,
+     "mem_gb_h": 64,
+     "storage_gb": 25,
+     "isl_gb": 20,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 10800
+    },
+    "deadline_s": 1209600,
+    "jobs_per_day": 0.1,
+    "value_per_job_usd": 10000,
+    "price_elasticity": 0.3
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Atlantic hurricane season raises storm tracking and post-landfall mapping",
+    "multiplier": 3.0,
+    "when": "Jun-Nov, peak Aug-Oct"
+   }
+  ],
+  "sources": [
+   "https://www.ccrif.org/",
+   "https://www.ccrif.org/aboutus"
+  ],
+  "unverified": [
+   "analytics budget"
+  ]
+ },
+ {
+  "id": "african-risk-capacity",
+  "name": "African Risk Capacity (ARC)",
+  "domain": "disaster-insurance",
+  "country": "ZA",
+  "what_they_buy": "Drought, flood and tropical cyclone indices for sovereign parametric cover",
+  "annual_budget_usd": 800000,
+  "budget_basis": "AU specialised agency running Africa RiskView; small EO budget assumed. https://www.arc.int/",
+  "jobs": [
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Africa",
+     "Indian Ocean"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 24,
+     "storage_gb": 10,
+     "isl_gb": 4,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 43200
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 8,
+    "value_per_job_usd": 200,
+    "price_elasticity": 1.0
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "rainy-season drought index tracking",
+    "multiplier": 2.0,
+    "when": "Oct-Apr southern Africa, Jun-Oct Sahel"
+   }
+  ],
+  "sources": [
+   "https://www.arc.int/"
+  ],
+  "unverified": [
+   "budget"
+  ]
+ },
+ {
+  "id": "fermat-capital",
+  "name": "Fermat Capital Management",
+  "domain": "disaster-insurance",
+  "country": "US",
+  "what_they_buy": "Independent event footprints to mark cat bond positions while a storm or quake unfolds",
+  "annual_budget_usd": 1500000,
+  "budget_basis": "One of the largest cat bond fund managers in a cat bond market of ~USD 61 bn outstanding at end 2025 (Artemis); analytics assumed. https://www.artemis.bm/news/catastrophe-bond-market-records-that-were-broken-in-2025/",
+  "jobs": [
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N Atlantic",
+     "N America",
+     "N Pacific",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 1,
+     "isl_gb": 1,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 300
+    },
+    "deadline_s": 1800,
+    "jobs_per_day": 48,
+    "value_per_job_usd": 300,
+    "price_elasticity": 0.2
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 24,
+     "mem_gb_h": 96,
+     "storage_gb": 40,
+     "isl_gb": 30,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 21600
+    },
+    "deadline_s": 172800,
+    "jobs_per_day": 0.1,
+    "value_per_job_usd": 50000,
+    "price_elasticity": 0.2
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Atlantic hurricane season raises storm tracking and post-landfall mapping",
+    "multiplier": 3.0,
+    "when": "Jun-Nov, peak Aug-Oct"
+   },
+   {
+    "trigger": "event",
+    "what": "landfall near a covered region: tracking every 15 min",
+    "multiplier": 6.0,
+    "when": "48 h around landfall"
+   }
+  ],
+  "sources": [
+   "https://www.fermatcapital.com/",
+   "https://www.artemis.bm/news/catastrophe-bond-market-records-that-were-broken-in-2025/"
+  ],
+  "unverified": [
+   "fund size and analytics spend"
+  ]
+ },
+ {
+  "id": "sentinel-asia",
+  "name": "Sentinel Asia (APRSAF, JAXA-led)",
+  "domain": "disaster-insurance",
+  "country": "JP",
+  "what_they_buy": "Emergency observation requests and value-added maps for Asia-Pacific disaster agencies",
+  "annual_budget_usd": 2000000,
+  "budget_basis": "Regional voluntary initiative; member agencies contribute tasking; value assumed. https://sentinel-asia.org/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "E Asia",
+     "S Asia",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 24,
+     "mem_gb_h": 96,
+     "storage_gb": 40,
+     "isl_gb": 30,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 21600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 0.1,
+    "value_per_job_usd": 30000,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "E Asia",
+     "S Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 16,
+     "mem_gb_h": 64,
+     "storage_gb": 25,
+     "isl_gb": 20,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 10800
+    },
+    "deadline_s": 43200,
+    "jobs_per_day": 0.2,
+    "value_per_job_usd": 5000,
+    "price_elasticity": 0.5
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "South Asian monsoon floods",
+    "multiplier": 2.5,
+    "when": "Jun-Sep"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "typhoon season",
+    "multiplier": 2.5,
+    "when": "Jul-Oct"
+   },
+   {
+    "trigger": "event",
+    "what": "major earthquake triggers rapid damage mapping of the affected cities",
+    "multiplier": 8.0,
+    "when": "within 72 h after an M6.5+ quake near population"
+   }
+  ],
+  "sources": [
+   "https://sentinel-asia.org/"
+  ],
+  "unverified": [
+   "value of tasking"
+  ]
+ }
+]

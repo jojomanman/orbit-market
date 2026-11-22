@@ -1,0 +1,1787 @@
+[
+ {
+  "id": "kpler",
+  "name": "Kpler",
+  "domain": "energy-finance",
+  "country": "FR",
+  "what_they_buy": "SAR and AIS fusion over tanker routes and ports to track crude, LNG and refined product flows in near real time",
+  "annual_budget_usd": 6000000,
+  "budget_basis": "Data provider whose whole product is cargo tracking; bought Spire Maritime (satellite AIS) in 2025; assumed ~5 % of revenue on orbital data and compute. https://www.kpler.com/",
+  "jobs": [
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Atlantic",
+     "Middle East"
+    ],
+    "per_job": {
+     "cpu_core_h": 3.0,
+     "mem_gb_h": 8.0,
+     "storage_gb": 1.0,
+     "isl_gb": 1.5,
+     "downlink_gb": 0.02
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 10800,
+    "jobs_per_day": 400,
+    "value_per_job_usd": 40,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "Middle East",
+     "Indian Ocean",
+     "N Asia",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 1.0,
+     "mem_gb_h": 4.0,
+     "storage_gb": 6.0,
+     "isl_gb": 6.0,
+     "downlink_gb": 6.0
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 21600
+    },
+    "deadline_s": 43200,
+    "jobs_per_day": 120,
+    "value_per_job_usd": 150,
+    "price_elasticity": 0.7
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Atlantic"
+    ],
+    "per_job": {
+     "cpu_core_h": 6.0,
+     "mem_gb_h": 24.0,
+     "storage_gb": 3.0,
+     "isl_gb": 3.0,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 600
+    },
+    "deadline_s": 7200,
+    "jobs_per_day": 300,
+    "value_per_job_usd": 25,
+    "price_elasticity": 0.6
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Sanctions or chokepoint disruption (Hormuz, Red Sea, Russian shadow fleet) drives dark-vessel tasking",
+    "multiplier": 3.0,
+    "when": "days after a sanctions package or strait incident"
+   },
+   {
+    "trigger": "growth",
+    "what": "More dark-fleet coverage sold to clients",
+    "multiplier": 1.25,
+    "when": "+25 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.kpler.com/",
+   "https://spire.com/maritime/"
+  ],
+  "unverified": [
+   "annual budget",
+   "all job volumes and values",
+   "Spire Maritime acquisition year (from memory, not re-checked)"
+  ]
+ },
+ {
+  "id": "vortexa",
+  "name": "Vortexa",
+  "domain": "energy-finance",
+  "country": "GB",
+  "what_they_buy": "Satellite and AIS based tanker tracking and floating-storage estimates for energy traders",
+  "annual_budget_usd": 2500000,
+  "budget_basis": "Smaller private peer of Kpler (estimated revenue tens of millions USD); assumed ~5-8 % on orbital data. https://www.vortexa.com/",
+  "jobs": [
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Atlantic",
+     "Middle East"
+    ],
+    "per_job": {
+     "cpu_core_h": 3.0,
+     "mem_gb_h": 8.0,
+     "storage_gb": 1.0,
+     "isl_gb": 1.5,
+     "downlink_gb": 0.02
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 1200
+    },
+    "deadline_s": 14400,
+    "jobs_per_day": 200,
+    "value_per_job_usd": 30,
+    "price_elasticity": 0.7
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "Middle East",
+     "Indian Ocean",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 1.0,
+     "mem_gb_h": 4.0,
+     "storage_gb": 6.0,
+     "isl_gb": 6.0,
+     "downlink_gb": 6.0
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 28800
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 50,
+    "value_per_job_usd": 120,
+    "price_elasticity": 0.9
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Floating storage builds in contango markets; more tank and anchorage scans",
+    "multiplier": 2.0,
+    "when": "when Brent curve flips to steep contango"
+   },
+   {
+    "trigger": "growth",
+    "what": "Client base growth",
+    "multiplier": 1.2,
+    "when": "+20 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.vortexa.com/"
+  ],
+  "unverified": [
+   "annual budget",
+   "revenue scale",
+   "job volumes and values"
+  ]
+ },
+ {
+  "id": "ursa-space",
+  "name": "Ursa Space Systems",
+  "domain": "energy-finance",
+  "country": "US",
+  "what_they_buy": "SAR shadow measurement of floating-roof oil tanks worldwide to estimate crude inventories",
+  "annual_budget_usd": 3000000,
+  "budget_basis": "SAR analytics firm reselling inventory data; assumed most COGS is imagery tasking. https://ursaspace.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "Middle East",
+     "E Asia",
+     "N Asia",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 1.0,
+     "mem_gb_h": 4.0,
+     "storage_gb": 6.0,
+     "isl_gb": 6.0,
+     "downlink_gb": 6.0
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 43200
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 150,
+    "value_per_job_usd": 60,
+    "price_elasticity": 0.8
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America",
+     "Middle East",
+     "E Asia",
+     "N Asia",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 6.0,
+     "mem_gb_h": 24.0,
+     "storage_gb": 3.0,
+     "isl_gb": 3.0,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 1800
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 150,
+    "value_per_job_usd": 20,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "store",
+    "regions": [
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.05,
+     "mem_gb_h": 0.2,
+     "storage_gb": 200.0,
+     "isl_gb": 0.0,
+     "downlink_gb": 0.0
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 3600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 2,
+    "value_per_job_usd": 100,
+    "price_elasticity": 0.3
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "diurnal",
+    "what": "Weekly inventory report cycle: scans cluster before EIA/OPEC data releases",
+    "multiplier": 1.8,
+    "when": "Mon-Wed"
+   },
+   {
+    "trigger": "event",
+    "what": "Refinery outage or storage crisis (e.g. Cushing full)",
+    "multiplier": 2.5,
+    "when": "after a supply shock"
+   }
+  ],
+  "sources": [
+   "https://ursaspace.com/"
+  ],
+  "unverified": [
+   "annual budget",
+   "scan counts",
+   "value per scan"
+  ]
+ },
+ {
+  "id": "vitol",
+  "name": "Vitol",
+  "domain": "energy-finance",
+  "country": "CH",
+  "what_they_buy": "Own-desk intelligence: tanker loadings, refinery activity and storage levels ahead of the market",
+  "annual_budget_usd": 4000000,
+  "budget_basis": "World's largest independent oil trader (~7 mb/d); data budget assumed a few million USD, small vs trading margin. https://www.vitol.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Middle East",
+     "Indian Ocean",
+     "N Atlantic",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 1.0,
+     "mem_gb_h": 4.0,
+     "storage_gb": 6.0,
+     "isl_gb": 6.0,
+     "downlink_gb": 6.0
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 10800
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 60,
+    "value_per_job_usd": 400,
+    "price_elasticity": 0.3
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Middle East",
+     "Europe",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 6.0,
+     "mem_gb_h": 24.0,
+     "storage_gb": 3.0,
+     "isl_gb": 3.0,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 1800
+    },
+    "deadline_s": 7200,
+    "jobs_per_day": 80,
+    "value_per_job_usd": 150,
+    "price_elasticity": 0.3
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "OPEC+ meeting, war or outage: urgent loading checks at Ras Tanura, Basrah, Primorsk",
+    "multiplier": 4.0,
+    "when": "1-5 days around the event"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "Winter distillate and summer gasoline refinery runs",
+    "multiplier": 1.3,
+    "when": "Nov-Feb and May-Aug"
+   }
+  ],
+  "sources": [
+   "https://www.vitol.com/"
+  ],
+  "unverified": [
+   "annual budget",
+   "throughput figure from memory",
+   "all job numbers"
+  ]
+ },
+ {
+  "id": "trafigura",
+  "name": "Trafigura",
+  "domain": "energy-finance",
+  "country": "SG",
+  "what_they_buy": "Port, smelter and refinery activity checks for oil and metals trading books",
+  "annual_budget_usd": 3000000,
+  "budget_basis": "Top-3 commodity trader in oil and metals; data spend assumed similar order to Vitol, somewhat lower. https://www.trafigura.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Middle East",
+     "S America",
+     "Africa",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 1.0,
+     "mem_gb_h": 4.0,
+     "storage_gb": 6.0,
+     "isl_gb": 6.0,
+     "downlink_gb": 6.0
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 14400
+    },
+    "deadline_s": 43200,
+    "jobs_per_day": 50,
+    "value_per_job_usd": 300,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "Africa",
+     "S America",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 2.0,
+     "storage_gb": 2.5,
+     "isl_gb": 2.5,
+     "downlink_gb": 2.5
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 21600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 40,
+    "value_per_job_usd": 150,
+    "price_elasticity": 0.5
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Metals squeeze or mine/smelter outage (copper, zinc, nickel)",
+    "multiplier": 3.0,
+    "when": "days after the outage news"
+   },
+   {
+    "trigger": "growth",
+    "what": "Expansion of metals and power trading",
+    "multiplier": 1.15,
+    "when": "+15 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.trafigura.com/"
+  ],
+  "unverified": [
+   "annual budget",
+   "job numbers"
+  ]
+ },
+ {
+  "id": "glencore",
+  "name": "Glencore",
+  "domain": "energy-finance",
+  "country": "CH",
+  "what_they_buy": "Mine site, tailings and stockpile monitoring plus trading intelligence on copper, cobalt and coal",
+  "annual_budget_usd": 3500000,
+  "budget_basis": "Miner and trader with assets on 5 continents; monitoring plus trading desk use, assumed. https://www.glencore.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Africa",
+     "S America",
+     "Oceania",
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 2.0,
+     "storage_gb": 2.5,
+     "isl_gb": 2.5,
+     "downlink_gb": 2.5
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 43200
+    },
+    "deadline_s": 172800,
+    "jobs_per_day": 60,
+    "value_per_job_usd": 120,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "Africa",
+     "S America",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.8,
+     "mem_gb_h": 3.2,
+     "storage_gb": 4.8,
+     "isl_gb": 4.8,
+     "downlink_gb": 4.8
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 86400
+    },
+    "deadline_s": 259200,
+    "jobs_per_day": 30,
+    "value_per_job_usd": 100,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "Oceania",
+     "E Asia",
+     "Indian Ocean"
+    ],
+    "per_job": {
+     "cpu_core_h": 3.0,
+     "mem_gb_h": 8.0,
+     "storage_gb": 1.0,
+     "isl_gb": 1.5,
+     "downlink_gb": 0.02
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 1800
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 100,
+    "value_per_job_usd": 20,
+    "price_elasticity": 0.6
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Rainy season raises tailings dam and pit flooding checks (DRC, Zambia)",
+    "multiplier": 1.8,
+    "when": "Nov-Apr"
+   },
+   {
+    "trigger": "event",
+    "what": "Coal port congestion (Newcastle, Richards Bay) watched by the trading desk",
+    "multiplier": 2.0,
+    "when": "during congestion episodes"
+   }
+  ],
+  "sources": [
+   "https://www.glencore.com/"
+  ],
+  "unverified": [
+   "annual budget",
+   "job numbers"
+  ]
+ },
+ {
+  "id": "citadel",
+  "name": "Citadel (commodities desk)",
+  "domain": "energy-finance",
+  "country": "US",
+  "what_they_buy": "Alternative data for commodity trading: crop, storage, refinery and LNG terminal observations before official data",
+  "annual_budget_usd": 5000000,
+  "budget_basis": "Large multi-strategy hedge fund with a commodities business; top funds reportedly spend tens of millions on alt data, assumed ~10 % here. https://www.citadel.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "Middle East",
+     "Europe",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 1.0,
+     "mem_gb_h": 4.0,
+     "storage_gb": 6.0,
+     "isl_gb": 6.0,
+     "downlink_gb": 6.0
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 7200
+    },
+    "deadline_s": 14400,
+    "jobs_per_day": 80,
+    "value_per_job_usd": 400,
+    "price_elasticity": 0.2
+   },
+   {
+    "type": "train_model",
+    "regions": [
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 400.0,
+     "mem_gb_h": 3000.0,
+     "storage_gb": 500.0,
+     "isl_gb": 300.0,
+     "downlink_gb": 2.0
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 21600
+    },
+    "deadline_s": 259200,
+    "jobs_per_day": 0.2,
+    "value_per_job_usd": 20000,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America",
+     "Europe",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 6.0,
+     "mem_gb_h": 24.0,
+     "storage_gb": 3.0,
+     "isl_gb": 3.0,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 120,
+    "value_per_job_usd": 120,
+    "price_elasticity": 0.3
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "diurnal",
+    "what": "Peaks before US EIA weekly petroleum and natural gas storage reports",
+    "multiplier": 2.0,
+    "when": "Tue-Thu US morning"
+   },
+   {
+    "trigger": "event",
+    "what": "Hurricane in the Gulf of Mexico: refinery and offshore platform checks",
+    "multiplier": 5.0,
+    "when": "Jun-Nov storms, days around landfall"
+   }
+  ],
+  "sources": [
+   "https://www.citadel.com/"
+  ],
+  "unverified": [
+   "annual budget",
+   "share of alt-data spend",
+   "all job numbers"
+  ]
+ },
+ {
+  "id": "shell",
+  "name": "Shell",
+  "domain": "energy-finance",
+  "country": "GB",
+  "what_they_buy": "Methane leak detection on upstream assets, pipeline right-of-way watch, plus trading-desk cargo intelligence",
+  "annual_budget_usd": 5000000,
+  "budget_basis": "Supermajor with methane intensity targets and a large trading arm; assumed few million USD split monitoring/trading. https://www.shell.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "Europe",
+     "Africa",
+     "Oceania",
+     "Middle East"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.25,
+     "mem_gb_h": 1.0,
+     "storage_gb": 1.25,
+     "isl_gb": 1.25,
+     "downlink_gb": 1.25
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 86400
+    },
+    "deadline_s": 259200,
+    "jobs_per_day": 100,
+    "value_per_job_usd": 80,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America",
+     "Africa",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 6.0,
+     "mem_gb_h": 24.0,
+     "storage_gb": 3.0,
+     "isl_gb": 3.0,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 10800
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 60,
+    "value_per_job_usd": 200,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Atlantic"
+    ],
+    "per_job": {
+     "cpu_core_h": 3.0,
+     "mem_gb_h": 8.0,
+     "storage_gb": 1.0,
+     "isl_gb": 1.5,
+     "downlink_gb": 0.02
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 1800
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 150,
+    "value_per_job_usd": 20,
+    "price_elasticity": 0.6
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "growth",
+    "what": "Stricter methane rules (EU methane regulation, US EPA) raise survey frequency",
+    "multiplier": 1.3,
+    "when": "+30 %/yr"
+   },
+   {
+    "trigger": "event",
+    "what": "Detected super-emitter triggers revisit tasking",
+    "multiplier": 5.0,
+    "when": "the week after a detection"
+   }
+  ],
+  "sources": [
+   "https://www.shell.com/",
+   "https://www.ghgsat.com/"
+  ],
+  "unverified": [
+   "annual budget",
+   "GHGSat as a Shell supplier (not confirmed)",
+   "methane revisit cadence",
+   "all job numbers"
+  ]
+ },
+ {
+  "id": "totalenergies",
+  "name": "TotalEnergies",
+  "domain": "energy-finance",
+  "country": "FR",
+  "what_they_buy": "Methane plume detection over oil and gas sites and offshore platform and spill surveillance",
+  "annual_budget_usd": 3500000,
+  "budget_basis": "Supermajor with its own methane detection programme (AUSEA drones) and satellite partnerships; assumed. https://totalenergies.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Africa",
+     "Middle East",
+     "Europe",
+     "S America"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.25,
+     "mem_gb_h": 1.0,
+     "storage_gb": 1.25,
+     "isl_gb": 1.25,
+     "downlink_gb": 1.25
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 86400
+    },
+    "deadline_s": 259200,
+    "jobs_per_day": 70,
+    "value_per_job_usd": 90,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "Africa",
+     "S Atlantic",
+     "N Atlantic"
+    ],
+    "per_job": {
+     "cpu_core_h": 1.0,
+     "mem_gb_h": 4.0,
+     "storage_gb": 6.0,
+     "isl_gb": 6.0,
+     "downlink_gb": 6.0
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 21600
+    },
+    "deadline_s": 43200,
+    "jobs_per_day": 20,
+    "value_per_job_usd": 250,
+    "price_elasticity": 0.3
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Oil spill or flaring incident: SAR slick mapping every pass",
+    "multiplier": 6.0,
+    "when": "1-2 weeks after an incident"
+   },
+   {
+    "trigger": "growth",
+    "what": "Methane reporting obligations (OGMP 2.0 level 5)",
+    "multiplier": 1.25,
+    "when": "+25 %/yr"
+   }
+  ],
+  "sources": [
+   "https://totalenergies.com/",
+   "https://www.ghgsat.com/"
+  ],
+  "unverified": [
+   "annual budget",
+   "satellite partner names",
+   "all job numbers"
+  ]
+ },
+ {
+  "id": "exxonmobil",
+  "name": "ExxonMobil",
+  "domain": "energy-finance",
+  "country": "US",
+  "what_they_buy": "Permian Basin methane surveys, well pad and pipeline monitoring, LNG terminal intelligence",
+  "annual_budget_usd": 4000000,
+  "budget_basis": "Largest US oil producer, Permian methane monitoring programme; assumed a few million USD/yr on satellite surveys. https://corporate.exxonmobil.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.25,
+     "mem_gb_h": 1.0,
+     "storage_gb": 1.25,
+     "isl_gb": 1.25,
+     "downlink_gb": 1.25
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 43200
+    },
+    "deadline_s": 172800,
+    "jobs_per_day": 150,
+    "value_per_job_usd": 60,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America",
+     "S America"
+    ],
+    "per_job": {
+     "cpu_core_h": 6.0,
+     "mem_gb_h": 24.0,
+     "storage_gb": 3.0,
+     "isl_gb": 3.0,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 7200
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 80,
+    "value_per_job_usd": 150,
+    "price_elasticity": 0.4
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Summer heat and winter freeze events change venting and equipment failures",
+    "multiplier": 1.5,
+    "when": "Jul-Aug and Jan-Feb freezes"
+   },
+   {
+    "trigger": "growth",
+    "what": "Guyana offshore and LNG growth adds sites",
+    "multiplier": 1.15,
+    "when": "+15 %/yr"
+   }
+  ],
+  "sources": [
+   "https://corporate.exxonmobil.com/"
+  ],
+  "unverified": [
+   "annual budget",
+   "survey volumes"
+  ]
+ },
+ {
+  "id": "saudi-aramco",
+  "name": "Saudi Aramco",
+  "domain": "energy-finance",
+  "country": "SA",
+  "what_they_buy": "Security and integrity monitoring of fields, pipelines and export terminals across the Kingdom",
+  "annual_budget_usd": 6000000,
+  "budget_basis": "World's largest oil producer, critical infrastructure targeted in the 2019 Abqaiq attack; assumed large security-driven budget. https://www.aramco.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Middle East"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 2.0,
+     "storage_gb": 2.5,
+     "isl_gb": 2.5,
+     "downlink_gb": 2.5
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 1800
+    },
+    "deadline_s": 7200,
+    "jobs_per_day": 200,
+    "value_per_job_usd": 120,
+    "price_elasticity": 0.2
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Middle East"
+    ],
+    "per_job": {
+     "cpu_core_h": 6.0,
+     "mem_gb_h": 24.0,
+     "storage_gb": 3.0,
+     "isl_gb": 3.0,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 600
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 300,
+    "value_per_job_usd": 100,
+    "price_elasticity": 0.2
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "Middle East",
+     "Indian Ocean"
+    ],
+    "per_job": {
+     "cpu_core_h": 1.0,
+     "mem_gb_h": 4.0,
+     "storage_gb": 6.0,
+     "isl_gb": 6.0,
+     "downlink_gb": 6.0
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 10800
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 40,
+    "value_per_job_usd": 200,
+    "price_elasticity": 0.2
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Regional attack or drone strike alert: continuous revisit of Abqaiq, Ras Tanura, East-West pipeline",
+    "multiplier": 8.0,
+    "when": "days after a regional escalation"
+   },
+   {
+    "trigger": "diurnal",
+    "what": "Night SAR for areas optical cannot see",
+    "multiplier": 1.3,
+    "when": "local night"
+   }
+  ],
+  "sources": [
+   "https://www.aramco.com/"
+  ],
+  "unverified": [
+   "annual budget",
+   "security tasking volumes"
+  ]
+ },
+ {
+  "id": "equinor",
+  "name": "Equinor",
+  "domain": "energy-finance",
+  "country": "NO",
+  "what_they_buy": "Offshore platform, sea ice, iceberg and oil spill monitoring in the North Sea and Barents Sea",
+  "annual_budget_usd": 2500000,
+  "budget_basis": "Norway's state-majority oil company operating Johan Sverdrup and Barents assets; assumed. https://www.equinor.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N Atlantic",
+     "Polar",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 1.0,
+     "mem_gb_h": 4.0,
+     "storage_gb": 6.0,
+     "isl_gb": 6.0,
+     "downlink_gb": 6.0
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 10800
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 40,
+    "value_per_job_usd": 150,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N Atlantic",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 3.0,
+     "mem_gb_h": 8.0,
+     "storage_gb": 1.0,
+     "isl_gb": 1.5,
+     "downlink_gb": 0.02
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 7200,
+    "jobs_per_day": 100,
+    "value_per_job_usd": 25,
+    "price_elasticity": 0.5
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Barents sea ice and iceberg season",
+    "multiplier": 2.0,
+    "when": "Jan-May"
+   },
+   {
+    "trigger": "event",
+    "what": "Subsea infrastructure sabotage worries (after Nord Stream 2022) raise vessel loitering checks",
+    "multiplier": 3.0,
+    "when": "weeks after an incident"
+   }
+  ],
+  "sources": [
+   "https://www.equinor.com/"
+  ],
+  "unverified": [
+   "annual budget",
+   "job numbers"
+  ]
+ },
+ {
+  "id": "enbridge",
+  "name": "Enbridge",
+  "domain": "energy-finance",
+  "country": "CA",
+  "what_they_buy": "Right-of-way intrusion, ground movement and leak indication along tens of thousands of km of pipelines",
+  "annual_budget_usd": 3000000,
+  "budget_basis": "Operator of North America's largest crude pipeline network; assumed a share of integrity budget moved to satellite. https://www.enbridge.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 2.0,
+     "storage_gb": 2.5,
+     "isl_gb": 2.5,
+     "downlink_gb": 2.5
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 86400
+    },
+    "deadline_s": 259200,
+    "jobs_per_day": 250,
+    "value_per_job_usd": 40,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 6.0,
+     "mem_gb_h": 24.0,
+     "storage_gb": 3.0,
+     "isl_gb": 3.0,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 14400
+    },
+    "deadline_s": 43200,
+    "jobs_per_day": 200,
+    "value_per_job_usd": 30,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 1.0,
+     "mem_gb_h": 4.0,
+     "storage_gb": 6.0,
+     "isl_gb": 6.0,
+     "downlink_gb": 6.0
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 20,
+    "value_per_job_usd": 80,
+    "price_elasticity": 0.5
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Spring thaw and flooding raise ground movement checks",
+    "multiplier": 2.0,
+    "when": "Apr-Jun"
+   },
+   {
+    "trigger": "event",
+    "what": "Wildfire near the right-of-way",
+    "multiplier": 3.0,
+    "when": "Jun-Sep fire season"
+   }
+  ],
+  "sources": [
+   "https://www.enbridge.com/"
+  ],
+  "unverified": [
+   "annual budget",
+   "job numbers"
+  ]
+ },
+ {
+  "id": "national-grid",
+  "name": "National Grid",
+  "domain": "energy-finance",
+  "country": "GB",
+  "what_they_buy": "Vegetation encroachment and asset condition along transmission lines in the UK and US Northeast",
+  "annual_budget_usd": 2000000,
+  "budget_basis": "UK and US grid operator; satellite vegetation management replaces some helicopter surveys, assumed. https://www.nationalgrid.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Europe",
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 2.0,
+     "storage_gb": 2.5,
+     "isl_gb": 2.5,
+     "downlink_gb": 2.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 172800
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 300,
+    "value_per_job_usd": 15,
+    "price_elasticity": 0.8
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Europe",
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 6.0,
+     "mem_gb_h": 24.0,
+     "storage_gb": 3.0,
+     "isl_gb": 3.0,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 43200
+    },
+    "deadline_s": 259200,
+    "jobs_per_day": 300,
+    "value_per_job_usd": 10,
+    "price_elasticity": 0.8
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Growing season vegetation surveys",
+    "multiplier": 2.0,
+    "when": "May-Sep"
+   },
+   {
+    "trigger": "event",
+    "what": "Winter storm damage assessment",
+    "multiplier": 3.0,
+    "when": "days after a named storm"
+   }
+  ],
+  "sources": [
+   "https://www.nationalgrid.com/"
+  ],
+  "unverified": [
+   "annual budget",
+   "vendor/programme details"
+  ]
+ },
+ {
+  "id": "pge",
+  "name": "Pacific Gas and Electric (PG&E)",
+  "domain": "energy-finance",
+  "country": "US",
+  "what_they_buy": "Wildfire risk: vegetation near lines, fire detection and post-fire damage mapping across Northern California",
+  "annual_budget_usd": 5000000,
+  "budget_basis": "Utility spending well over USD 1 bn/yr on wildfire mitigation after Camp Fire 2018; assumed under 0.5 % on orbital monitoring. https://www.pge.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 2.0,
+     "storage_gb": 2.5,
+     "isl_gb": 2.5,
+     "downlink_gb": 2.5
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 43200
+    },
+    "deadline_s": 172800,
+    "jobs_per_day": 400,
+    "value_per_job_usd": 20,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 3.0,
+     "mem_gb_h": 8.0,
+     "storage_gb": 1.0,
+     "isl_gb": 1.5,
+     "downlink_gb": 0.02
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 300
+    },
+    "deadline_s": 900,
+    "jobs_per_day": 200,
+    "value_per_job_usd": 60,
+    "price_elasticity": 0.1
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 6.0,
+     "mem_gb_h": 24.0,
+     "storage_gb": 3.0,
+     "isl_gb": 3.0,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 600
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 150,
+    "value_per_job_usd": 80,
+    "price_elasticity": 0.2
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Fire season: near-continuous fire watch and PSPS decisions",
+    "multiplier": 4.0,
+    "when": "Jun-Nov"
+   },
+   {
+    "trigger": "event",
+    "what": "Red-flag wind warning (Diablo winds)",
+    "multiplier": 3.0,
+    "when": "1-3 days per warning"
+   }
+  ],
+  "sources": [
+   "https://www.pge.com/"
+  ],
+  "unverified": [
+   "annual budget share",
+   "job numbers"
+  ]
+ },
+ {
+  "id": "bhp",
+  "name": "BHP",
+  "domain": "energy-finance",
+  "country": "AU",
+  "what_they_buy": "Mine pit, stockpile, rail and port monitoring plus tailings dam deformation (InSAR) at Pilbara and Escondida",
+  "annual_budget_usd": 3000000,
+  "budget_basis": "World's largest listed miner; assumed modest share of technology spend on satellite monitoring. https://www.bhp.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Oceania",
+     "S America"
+    ],
+    "per_job": {
+     "cpu_core_h": 1.0,
+     "mem_gb_h": 4.0,
+     "storage_gb": 6.0,
+     "isl_gb": 6.0,
+     "downlink_gb": 6.0
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 30,
+    "value_per_job_usd": 100,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "Oceania",
+     "S America"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 2.0,
+     "storage_gb": 2.5,
+     "isl_gb": 2.5,
+     "downlink_gb": 2.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 43200
+    },
+    "deadline_s": 172800,
+    "jobs_per_day": 60,
+    "value_per_job_usd": 50,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "store",
+    "regions": [
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.05,
+     "mem_gb_h": 0.2,
+     "storage_gb": 200.0,
+     "isl_gb": 0.0,
+     "downlink_gb": 0.0
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 3600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 3,
+    "value_per_job_usd": 80,
+    "price_elasticity": 0.3
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Pilbara cyclone season disrupts rail and port",
+    "multiplier": 2.0,
+    "when": "Nov-Apr"
+   },
+   {
+    "trigger": "growth",
+    "what": "Copper expansion and tailings standard (GISTM) compliance",
+    "multiplier": 1.2,
+    "when": "+20 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.bhp.com/",
+   "https://globaltailingsreview.org/"
+  ],
+  "unverified": [
+   "annual budget",
+   "job numbers"
+  ]
+ },
+ {
+  "id": "rio-tinto",
+  "name": "Rio Tinto",
+  "domain": "energy-finance",
+  "country": "GB",
+  "what_they_buy": "Autonomous-mine support imagery, tailings InSAR and environmental compliance at Pilbara, Oyu Tolgoi and Canada",
+  "annual_budget_usd": 2500000,
+  "budget_basis": "Major miner running autonomous haulage and rail in the Pilbara; assumed similar but smaller than BHP. https://www.riotinto.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Oceania",
+     "N Asia",
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 1.0,
+     "mem_gb_h": 4.0,
+     "storage_gb": 6.0,
+     "isl_gb": 6.0,
+     "downlink_gb": 6.0
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 25,
+    "value_per_job_usd": 100,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "Oceania",
+     "N Asia",
+     "Africa"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 2.0,
+     "storage_gb": 2.5,
+     "isl_gb": 2.5,
+     "downlink_gb": 2.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 259200,
+    "jobs_per_day": 50,
+    "value_per_job_usd": 50,
+    "price_elasticity": 0.6
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Mongolian winter and Pilbara cyclones",
+    "multiplier": 1.5,
+    "when": "Dec-Mar"
+   },
+   {
+    "trigger": "event",
+    "what": "Heritage or environmental incident triggers compliance imagery",
+    "multiplier": 2.5,
+    "when": "months after an incident"
+   }
+  ],
+  "sources": [
+   "https://www.riotinto.com/"
+  ],
+  "unverified": [
+   "annual budget",
+   "job numbers"
+  ]
+ },
+ {
+  "id": "vale",
+  "name": "Vale",
+  "domain": "energy-finance",
+  "country": "BR",
+  "what_they_buy": "Tailings dam deformation monitoring (InSAR) and mine site watch in Minas Gerais and Para",
+  "annual_budget_usd": 3000000,
+  "budget_basis": "Iron ore major; after the 2019 Brumadinho dam collapse dam monitoring became a board priority; assumed. https://vale.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "S America"
+    ],
+    "per_job": {
+     "cpu_core_h": 1.0,
+     "mem_gb_h": 4.0,
+     "storage_gb": 6.0,
+     "isl_gb": 6.0,
+     "downlink_gb": 6.0
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 43200
+    },
+    "deadline_s": 172800,
+    "jobs_per_day": 60,
+    "value_per_job_usd": 120,
+    "price_elasticity": 0.3
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "S America"
+    ],
+    "per_job": {
+     "cpu_core_h": 6.0,
+     "mem_gb_h": 24.0,
+     "storage_gb": 3.0,
+     "isl_gb": 3.0,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 7200
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 60,
+    "value_per_job_usd": 80,
+    "price_elasticity": 0.3
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Rainy season in Minas Gerais raises dam monitoring cadence",
+    "multiplier": 2.5,
+    "when": "Nov-Mar"
+   },
+   {
+    "trigger": "event",
+    "what": "Deformation anomaly: daily revisit until cleared",
+    "multiplier": 5.0,
+    "when": "weeks after an alert"
+   }
+  ],
+  "sources": [
+   "https://vale.com/"
+  ],
+  "unverified": [
+   "annual budget",
+   "job numbers"
+  ]
+ },
+ {
+  "id": "sp-global-commodity-insights",
+  "name": "S&P Global Commodity Insights",
+  "domain": "energy-finance",
+  "country": "US",
+  "what_they_buy": "Satellite-derived supply data (refinery activity, storage, shipping) feeding Platts price assessments and analytics",
+  "annual_budget_usd": 4000000,
+  "budget_basis": "Price-reporting and data business (formerly Platts); assumed a few million USD on satellite inputs. https://www.spglobal.com/commodityinsights/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Middle East",
+     "N America",
+     "Europe",
+     "E Asia",
+     "N Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 1.0,
+     "mem_gb_h": 4.0,
+     "storage_gb": 6.0,
+     "isl_gb": 6.0,
+     "downlink_gb": 6.0
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 43200
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 150,
+    "value_per_job_usd": 50,
+    "price_elasticity": 0.7
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Atlantic"
+    ],
+    "per_job": {
+     "cpu_core_h": 3.0,
+     "mem_gb_h": 8.0,
+     "storage_gb": 1.0,
+     "isl_gb": 1.5,
+     "downlink_gb": 0.02
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 1800
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 200,
+    "value_per_job_usd": 15,
+    "price_elasticity": 0.7
+   },
+   {
+    "type": "train_model",
+    "regions": [
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 400.0,
+     "mem_gb_h": 3000.0,
+     "storage_gb": 500.0,
+     "isl_gb": 300.0,
+     "downlink_gb": 2.0
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 43200
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 0.1,
+    "value_per_job_usd": 15000,
+    "price_elasticity": 0.5
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "diurnal",
+    "what": "Daily Platts price assessment window (Singapore, London, Houston closes)",
+    "multiplier": 1.5,
+    "when": "before each regional close"
+   },
+   {
+    "trigger": "growth",
+    "what": "New energy transition datasets (LNG, hydrogen, critical minerals)",
+    "multiplier": 1.2,
+    "when": "+20 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.spglobal.com/commodityinsights/"
+  ],
+  "unverified": [
+   "annual budget",
+   "job numbers"
+  ]
+ },
+ {
+  "id": "orsted",
+  "name": "Orsted",
+  "domain": "energy-finance",
+  "country": "DK",
+  "what_they_buy": "Offshore wind farm and cable route watch: vessel intrusion, anchors near export cables, wake and sea-state data",
+  "annual_budget_usd": 1500000,
+  "budget_basis": "Largest offshore wind developer; assumed a small monitoring budget relative to capex. https://orsted.com/",
+  "jobs": [
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N Atlantic",
+     "Europe",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 3.0,
+     "mem_gb_h": 8.0,
+     "storage_gb": 1.0,
+     "isl_gb": 1.5,
+     "downlink_gb": 0.02
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 7200,
+    "jobs_per_day": 150,
+    "value_per_job_usd": 20,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "N Atlantic",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 1.0,
+     "mem_gb_h": 4.0,
+     "storage_gb": 6.0,
+     "isl_gb": 6.0,
+     "downlink_gb": 6.0
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 43200
+    },
+    "deadline_s": 172800,
+    "jobs_per_day": 20,
+    "value_per_job_usd": 60,
+    "price_elasticity": 0.6
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Winter storms raise cable and turbine damage checks",
+    "multiplier": 1.5,
+    "when": "Oct-Mar"
+   },
+   {
+    "trigger": "event",
+    "what": "Cable cut or anchor drag incident in the Baltic or North Sea",
+    "multiplier": 4.0,
+    "when": "weeks after an incident"
+   }
+  ],
+  "sources": [
+   "https://orsted.com/"
+  ],
+  "unverified": [
+   "annual budget",
+   "job numbers"
+  ]
+ }
+]

@@ -16,7 +16,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffe
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 host.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(35, 1, 0.01, 100);
+const camera = new THREE.PerspectiveCamera(35, 1, 0.01, 200);
 camera.position.set(1.6, 1.4, 3.6);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -44,10 +44,31 @@ earth.add(new THREE.Mesh(
         float l = dot(normalize(vN), sun);
         float d = smoothstep(-0.08, 0.12, l);
         vec3 dc = texture2D(day, vUv).rgb;
-        dc = mix(vec3(dot(dc, vec3(0.3,0.59,0.11))), dc, 0.8) * (0.25 + 0.6*max(l, 0.));
+        dc = mix(vec3(dot(dc, vec3(0.3,0.59,0.11))), dc, 0.9) * (0.55 + 0.85*max(l, 0.));
         vec3 nc = texture2D(night, vUv).rgb * vec3(1.0,0.85,0.6) * 0.9 + vec3(0.006,0.009,0.014);
         gl_FragColor = vec4(mix(nc, dc, d), 1.); }`,
   })));
+
+// Star field: procedural (no catalogue shipped). Brightness follows the steep magnitude count law, a third of the
+// stars crowd a tilted band like the Milky Way; fixed in inertial space, so the Earth turns against it.
+{
+  const n = 7000, pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+  const tilt = new THREE.Matrix4().makeRotationX(1.05);
+  const v = new THREE.Vector3();
+  for (let i = 0; i < n; i++) {
+    const z = 2 * Math.random() - 1, ph = 2 * Math.PI * Math.random();
+    v.set(Math.sqrt(1 - z * z) * Math.cos(ph), z, Math.sqrt(1 - z * z) * Math.sin(ph));
+    if (i % 3 === 0) { v.y *= 0.12; v.normalize().applyMatrix4(tilt); }
+    v.multiplyScalar(60); pos.set([v.x, v.y, v.z], i * 3);
+    const b = 0.12 + 0.75 * Math.pow(Math.random(), 6), warm = Math.random();
+    col.set([b * (0.85 + 0.15 * warm), b * 0.9, b * (1.0 - 0.15 * warm)], i * 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 1.3, sizeAttenuation: false, vertexColors: true,
+    transparent: true, depthWrite: false })));
+}
 
 function llToLocal(lat, lon, r) {
   const la = lat * Math.PI / 180, lo = lon * Math.PI / 180;

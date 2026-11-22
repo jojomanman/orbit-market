@@ -1,0 +1,1758 @@
+[
+ {
+  "id": "ecmwf",
+  "name": "European Centre for Medium-Range Weather Forecasts (ECMWF)",
+  "domain": "agri-climate-weather",
+  "country": "GB",
+  "what_they_buy": "Low-latency relay of satellite observations for 4x daily data assimilation, onboard pre-processing, and GPU/CPU time to train AI forecast models (AIFS).",
+  "annual_budget_usd": 15000000.0,
+  "budget_basis": "ECMWF runs its own HPC (Bologna, Atos BullSequana, ~EUR 80M contract) plus Copernicus C3S/CAMS and Destination Earth delegated budgets in the hundreds of millions EUR; assume a few percent buyable in orbit. https://www.ecmwf.int/en/about",
+  "jobs": [
+   {
+    "type": "relay_data",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 2,
+     "isl_gb": 15,
+     "downlink_gb": 15
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 600
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 96,
+    "value_per_job_usd": 120,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 40,
+     "mem_gb_h": 160,
+     "storage_gb": 20,
+     "isl_gb": 30,
+     "downlink_gb": 3
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 24,
+    "value_per_job_usd": 250,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "train_model",
+    "regions": [
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 8000,
+     "mem_gb_h": 32000,
+     "storage_gb": 3000,
+     "isl_gb": 800,
+     "downlink_gb": 40
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 0.3,
+    "value_per_job_usd": 20000,
+    "price_elasticity": 0.8
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "diurnal",
+    "what": "Assimilation cycles 00/06/12/18 UTC spike observation relay",
+    "multiplier": 3,
+    "when": "30 min before each main cycle cutoff"
+   },
+   {
+    "trigger": "growth",
+    "what": "AIFS and DestinE training compute grows",
+    "multiplier": 1.4,
+    "when": "+40 %/yr"
+   },
+   {
+    "trigger": "event",
+    "what": "Extra ensemble runs for extreme events",
+    "multiplier": 1.5,
+    "when": "named storms, heatwaves over Europe"
+   }
+  ],
+  "sources": [
+   "https://www.ecmwf.int/en/forecasts/documentation-and-support/changes-ecmwf-model",
+   "https://www.ecmwf.int/en/about",
+   "https://destination-earth.eu/"
+  ],
+  "unverified": [
+   "annual_budget_usd share for an orbital market",
+   "per-job sizes",
+   "value_per_job_usd",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "noaa-nesdis",
+  "name": "NOAA NESDIS (National Environmental Satellite, Data, and Information Service)",
+  "domain": "agri-climate-weather",
+  "country": "US",
+  "what_they_buy": "Near-real-time relay and onboard processing of commercial and government weather observations (radio occultation, microwave, imagery) and bulk archive downlink.",
+  "annual_budget_usd": 40000000.0,
+  "budget_basis": "NESDIS budget ~USD 1.7B/yr; Commercial Weather Data Pilot and commercial RO data buys are tens of millions/yr (e.g. RO purchase contracts to Spire, PlanetiQ, GeoOptics). https://www.space.commerce.gov/ and https://www.nesdis.noaa.gov/",
+  "jobs": [
+   {
+    "type": "relay_data",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 2,
+     "isl_gb": 15,
+     "downlink_gb": 15
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 600
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 200,
+    "value_per_job_usd": 90,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America",
+     "N Atlantic",
+     "N Pacific"
+    ],
+    "per_job": {
+     "cpu_core_h": 40,
+     "mem_gb_h": 160,
+     "storage_gb": 20,
+     "isl_gb": 30,
+     "downlink_gb": 3
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 48,
+    "value_per_job_usd": 250,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "downlink_bulk",
+    "regions": [
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.2,
+     "mem_gb_h": 1,
+     "storage_gb": 800,
+     "isl_gb": 400.0,
+     "downlink_gb": 800
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 43200
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 6,
+    "value_per_job_usd": 1500,
+    "price_elasticity": 1.0
+   },
+   {
+    "type": "store",
+    "regions": [
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.1,
+     "mem_gb_h": 0.5,
+     "storage_gb": 500000,
+     "isl_gb": 0,
+     "downlink_gb": 0
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 1,
+    "value_per_job_usd": 15000,
+    "price_elasticity": 0.9
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Atlantic hurricane season adds dedicated relay and onboard tracking",
+    "multiplier": 2,
+    "when": "Jun-Nov"
+   },
+   {
+    "trigger": "event",
+    "what": "Hurricane approaching US coast: rapid-scan imagery relay",
+    "multiplier": 4,
+    "when": "72 h before landfall"
+   },
+   {
+    "trigger": "growth",
+    "what": "Commercial data buy programme expands",
+    "multiplier": 1.15,
+    "when": "+15 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.nesdis.noaa.gov/",
+   "https://www.space.commerce.gov/"
+  ],
+  "unverified": [
+   "share of budget routed to this market",
+   "per-job sizes",
+   "value_per_job_usd",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "smhi",
+  "name": "SMHI (Swedish Meteorological and Hydrological Institute)",
+  "domain": "agri-climate-weather",
+  "country": "SE",
+  "what_they_buy": "Nordic observation relay for regional HARMONIE-AROME runs, snow/ice and hydrology imagery, Baltic Sea monitoring.",
+  "annual_budget_usd": 1500000.0,
+  "budget_basis": "SMHI turnover ~SEK 1 billion/yr incl. EUMETSAT contributions; assume ~1-2 % of that buyable here. https://www.smhi.se/en/about-smhi",
+  "jobs": [
+   {
+    "type": "relay_data",
+    "regions": [
+     "Europe",
+     "N Atlantic",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 2,
+     "isl_gb": 15,
+     "downlink_gb": 15
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 600
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 48,
+    "value_per_job_usd": 30,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "Europe",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 2,
+     "storage_gb": 3,
+     "isl_gb": 2,
+     "downlink_gb": 1.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 21600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 20,
+    "value_per_job_usd": 60,
+    "price_elasticity": 0.9
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 40,
+     "mem_gb_h": 160,
+     "storage_gb": 20,
+     "isl_gb": 30,
+     "downlink_gb": 3
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 8,
+    "value_per_job_usd": 80,
+    "price_elasticity": 0.5
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Snowmelt and spring flood forecasting needs snow-cover imagery",
+    "multiplier": 2,
+    "when": "Mar-May"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "Forest fire risk monitoring",
+    "multiplier": 1.5,
+    "when": "Jun-Aug"
+   },
+   {
+    "trigger": "event",
+    "what": "Storm warnings for Baltic coast",
+    "multiplier": 2.5,
+    "when": "autumn storms Oct-Jan"
+   }
+  ],
+  "sources": [
+   "https://www.smhi.se/en/about-smhi",
+   "https://www.smhi.se/en/"
+  ],
+  "unverified": [
+   "annual_budget_usd",
+   "all per-job numbers",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "eumetsat",
+  "name": "EUMETSAT",
+  "domain": "agri-climate-weather",
+  "country": "DE",
+  "what_they_buy": "Relay and onboard processing to cut latency of polar and geostationary products, plus bulk archive mirroring of Data Store products.",
+  "annual_budget_usd": 20000000.0,
+  "budget_basis": "EUMETSAT annual budget roughly EUR 800M-1B (mostly satellite programmes); a small slice for ground/processing services fits here. https://www.eumetsat.int/about-us/who-we-are",
+  "jobs": [
+   {
+    "type": "relay_data",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 2,
+     "isl_gb": 15,
+     "downlink_gb": 15
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 600
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 150,
+    "value_per_job_usd": 60,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Europe",
+     "Africa",
+     "N Atlantic"
+    ],
+    "per_job": {
+     "cpu_core_h": 40,
+     "mem_gb_h": 160,
+     "storage_gb": 20,
+     "isl_gb": 30,
+     "downlink_gb": 3
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 48,
+    "value_per_job_usd": 150,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "downlink_bulk",
+    "regions": [
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.2,
+     "mem_gb_h": 1,
+     "storage_gb": 1000,
+     "isl_gb": 500.0,
+     "downlink_gb": 1000
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 43200
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 10,
+    "value_per_job_usd": 800,
+    "price_elasticity": 1.0
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "growth",
+    "what": "MTG and EPS-SG data volumes ramp up as satellites enter service",
+    "multiplier": 1.5,
+    "when": "+50 %/yr through 2028"
+   },
+   {
+    "trigger": "event",
+    "what": "Ground station outage: route via ISL",
+    "multiplier": 3,
+    "when": "during outages"
+   }
+  ],
+  "sources": [
+   "https://www.eumetsat.int/about-us/who-we-are",
+   "https://www.eumetsat.int/meteosat-third-generation",
+   "https://data.eumetsat.int/"
+  ],
+  "unverified": [
+   "budget share",
+   "per-job numbers",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "met-office",
+  "name": "Met Office",
+  "domain": "agri-climate-weather",
+  "country": "GB",
+  "what_they_buy": "Global observation relay for the UK model, onboard nowcasting products, and AI model training time.",
+  "annual_budget_usd": 10000000.0,
+  "budget_basis": "Met Office supercomputing contract with Microsoft GBP 854M over 10 years (~GBP 85M/yr); assume ~10 % of that-scale compute plus data spend could move here. https://www.metoffice.gov.uk/about-us/who-we-are/innovation/supercomputer",
+  "jobs": [
+   {
+    "type": "relay_data",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 2,
+     "isl_gb": 15,
+     "downlink_gb": 15
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 600
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 96,
+    "value_per_job_usd": 60,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Europe",
+     "N Atlantic"
+    ],
+    "per_job": {
+     "cpu_core_h": 40,
+     "mem_gb_h": 160,
+     "storage_gb": 20,
+     "isl_gb": 30,
+     "downlink_gb": 3
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 24,
+    "value_per_job_usd": 150,
+    "price_elasticity": 0.5
+   },
+   {
+    "type": "train_model",
+    "regions": [
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 5000,
+     "mem_gb_h": 20000,
+     "storage_gb": 3000,
+     "isl_gb": 800,
+     "downlink_gb": 40
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 0.2,
+    "value_per_job_usd": 15000,
+    "price_elasticity": 0.8
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Named storm over UK: extra ensemble and rapid-update relay",
+    "multiplier": 2.5,
+    "when": "Oct-Mar storms"
+   },
+   {
+    "trigger": "growth",
+    "what": "AI forecasting programme",
+    "multiplier": 1.3,
+    "when": "+30 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.metoffice.gov.uk/about-us/who-we-are/innovation/supercomputer"
+  ],
+  "unverified": [
+   "per-job numbers",
+   "value_per_job_usd",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "jma",
+  "name": "Japan Meteorological Agency",
+  "domain": "agri-climate-weather",
+  "country": "JP",
+  "what_they_buy": "Typhoon tracking and western Pacific observation relay, onboard processing of Himawari-adjacent products.",
+  "annual_budget_usd": 8000000.0,
+  "budget_basis": "JMA annual budget ~JPY 60B (~USD 400M), Himawari-10 programme; assume ~2 % here. https://www.jma.go.jp/jma/indexe.html",
+  "jobs": [
+   {
+    "type": "relay_data",
+    "regions": [
+     "E Asia",
+     "N Pacific",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 2,
+     "isl_gb": 15,
+     "downlink_gb": 15
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 600
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 96,
+    "value_per_job_usd": 50,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N Pacific",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 4,
+     "mem_gb_h": 16,
+     "storage_gb": 10,
+     "isl_gb": 20,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 600
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 24,
+    "value_per_job_usd": 120,
+    "price_elasticity": 0.3
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Typhoon season tracking",
+    "multiplier": 3,
+    "when": "Jul-Oct"
+   },
+   {
+    "trigger": "event",
+    "what": "Earthquake or tsunami: priority relay",
+    "multiplier": 4,
+    "when": "after a major quake"
+   }
+  ],
+  "sources": [
+   "https://www.jma.go.jp/jma/indexe.html",
+   "https://www.data.jma.go.jp/mscweb/en/index.html"
+  ],
+  "unverified": [
+   "annual_budget_usd",
+   "per-job numbers",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "imd",
+  "name": "India Meteorological Department",
+  "domain": "agri-climate-weather",
+  "country": "IN",
+  "what_they_buy": "Monsoon and cyclone observation relay over the Indian Ocean and agrometeorological imagery for district crop advisories.",
+  "annual_budget_usd": 4000000.0,
+  "budget_basis": "Ministry of Earth Sciences 'Mission Mausam' approved INR 2,000 crore (~USD 240M) over 2024-26; assume ~1-2 %/yr here. https://pib.gov.in/PressReleasePage.aspx?PRID=2056369",
+  "jobs": [
+   {
+    "type": "relay_data",
+    "regions": [
+     "S Asia",
+     "Indian Ocean"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 2,
+     "isl_gb": 15,
+     "downlink_gb": 15
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 600
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 96,
+    "value_per_job_usd": 30,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "S Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 2,
+     "storage_gb": 3,
+     "isl_gb": 2,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 21600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 40,
+    "value_per_job_usd": 40,
+    "price_elasticity": 1.0
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Southwest monsoon onset and progress tracking",
+    "multiplier": 2.5,
+    "when": "Jun-Sep"
+   },
+   {
+    "trigger": "event",
+    "what": "Bay of Bengal / Arabian Sea cyclone",
+    "multiplier": 3,
+    "when": "Apr-Jun and Oct-Dec cyclone windows"
+   }
+  ],
+  "sources": [
+   "https://pib.gov.in/PressReleasePage.aspx?PRID=2056369",
+   "https://mausam.imd.gov.in/"
+  ],
+  "unverified": [
+   "annual_budget_usd share",
+   "per-job numbers",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "inpe",
+  "name": "INPE (Brazil National Institute for Space Research)",
+  "domain": "agri-climate-weather",
+  "country": "BR",
+  "what_they_buy": "Daily Amazon and Cerrado deforestation alerts (DETER) and fire hotspot detection, processed onboard and relayed fast.",
+  "annual_budget_usd": 2000000.0,
+  "budget_basis": "INPE total budget is a few hundred million BRL/yr; DETER/PRODES are core programmes; assume ~USD 2M buyable. https://www.gov.br/inpe/pt-br",
+  "jobs": [
+   {
+    "type": "monitor_track",
+    "regions": [
+     "S America"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 6,
+     "isl_gb": 4,
+     "downlink_gb": 0.2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 7200
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 60,
+    "value_per_job_usd": 25,
+    "price_elasticity": 0.7
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "S America"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 2,
+     "isl_gb": 1,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 1800
+    },
+    "deadline_s": 10800,
+    "jobs_per_day": 80,
+    "value_per_job_usd": 8,
+    "price_elasticity": 0.8
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Dry-season burning and clearing",
+    "multiplier": 3,
+    "when": "Jul-Oct"
+   },
+   {
+    "trigger": "event",
+    "what": "Policy enforcement operations",
+    "multiplier": 1.5,
+    "when": "federal enforcement campaigns"
+   }
+  ],
+  "sources": [
+   "https://www.gov.br/inpe/pt-br",
+   "http://terrabrasilis.dpi.inpe.br/"
+  ],
+  "unverified": [
+   "annual_budget_usd",
+   "per-job numbers",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "bayer-crop-science",
+  "name": "Bayer Crop Science (Climate FieldView)",
+  "domain": "agri-climate-weather",
+  "country": "DE",
+  "what_they_buy": "Field-level crop health imagery and in-season analytics for FieldView farms.",
+  "annual_budget_usd": 12000000.0,
+  "budget_basis": "FieldView covers 200M+ subscribed acres in 20+ countries; at ~USD 0.05/acre/yr imagery cost that is ~USD 10M. https://climate.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 2,
+     "storage_gb": 3,
+     "isl_gb": 2,
+     "downlink_gb": 0.3
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 21600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 8000,
+    "value_per_job_usd": 2.5,
+    "price_elasticity": 0.9
+   },
+   {
+    "type": "train_model",
+    "regions": [
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 3000,
+     "mem_gb_h": 12000,
+     "storage_gb": 2000,
+     "isl_gb": 500,
+     "downlink_gb": 20
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 0.3,
+    "value_per_job_usd": 10000,
+    "price_elasticity": 0.7
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Northern hemisphere growing season",
+    "multiplier": 3,
+    "when": "May-Sep"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "Brazil soy season",
+    "multiplier": 2,
+    "when": "Nov-Mar"
+   },
+   {
+    "trigger": "growth",
+    "what": "Subscribed acres growth",
+    "multiplier": 1.1,
+    "when": "+10 %/yr"
+   }
+  ],
+  "sources": [
+   "https://climate.com/",
+   "https://www.cropscience.bayer.com/innovations/digital-farming"
+  ],
+  "unverified": [
+   "acreage figure from marketing page",
+   "imagery cost per acre",
+   "per-job numbers",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "john-deere",
+  "name": "Deere & Company",
+  "domain": "agri-climate-weather",
+  "country": "US",
+  "what_they_buy": "Field imagery for Operations Center, relay of machine telemetry from remote farms, and prescription-map processing.",
+  "annual_budget_usd": 15000000.0,
+  "budget_basis": "Deere signed with SpaceX Starlink (2024) for machine connectivity; 500M+ engaged acres in Operations Center; assume ~USD 15M for imagery+relay. https://www.deere.com/en/news/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 2,
+     "storage_gb": 3,
+     "isl_gb": 2,
+     "downlink_gb": 0.3
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 21600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 6000,
+    "value_per_job_usd": 2.0,
+    "price_elasticity": 0.9
+   },
+   {
+    "type": "relay_data",
+    "regions": [
+     "N America",
+     "S America",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.05,
+     "mem_gb_h": 0.2,
+     "storage_gb": 0.1,
+     "isl_gb": 0.05,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 60
+    },
+    "deadline_s": 600,
+    "jobs_per_day": 50000,
+    "value_per_job_usd": 0.15,
+    "price_elasticity": 0.6
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Planting and harvest machine telemetry peaks",
+    "multiplier": 4,
+    "when": "Apr-May and Sep-Oct (N hemisphere)"
+   },
+   {
+    "trigger": "diurnal",
+    "what": "Machines run in local daytime",
+    "multiplier": 2,
+    "when": "local 06-20"
+   }
+  ],
+  "sources": [
+   "https://www.deere.com/en/news/",
+   "https://www.deere.com/en/technology-products/precision-ag-technology/data-management/operations-center/"
+  ],
+  "unverified": [
+   "engaged acres",
+   "annual_budget_usd",
+   "per-job numbers",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "syngenta",
+  "name": "Syngenta Group (Cropwise)",
+  "domain": "agri-climate-weather",
+  "country": "CH",
+  "what_they_buy": "Crop scouting imagery and pest/disease risk models for Cropwise digital platform users.",
+  "annual_budget_usd": 5000000.0,
+  "budget_basis": "Cropwise reports ~70M+ ha on platform; assume ~USD 0.07/ha/yr imagery and compute. https://www.syngenta.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "S America",
+     "Europe",
+     "E Asia",
+     "Africa"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 2,
+     "storage_gb": 3,
+     "isl_gb": 2,
+     "downlink_gb": 0.3
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 21600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 4000,
+    "value_per_job_usd": 1.8,
+    "price_elasticity": 0.9
+   },
+   {
+    "type": "train_model",
+    "regions": [
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 1500,
+     "mem_gb_h": 6000,
+     "storage_gb": 800,
+     "isl_gb": 200,
+     "downlink_gb": 10
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 0.2,
+    "value_per_job_usd": 6000,
+    "price_elasticity": 0.8
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Brazil and Argentina season",
+    "multiplier": 2,
+    "when": "Oct-Mar"
+   },
+   {
+    "trigger": "event",
+    "what": "Pest outbreak (e.g. locust, rust)",
+    "multiplier": 2,
+    "when": "after outbreak reports"
+   }
+  ],
+  "sources": [
+   "https://www.syngenta.com/"
+  ],
+  "unverified": [
+   "hectare figure",
+   "annual_budget_usd",
+   "per-job numbers",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "cargill",
+  "name": "Cargill",
+  "domain": "agri-climate-weather",
+  "country": "US",
+  "what_they_buy": "Crop yield estimation imagery for trading and supply chain monitoring for deforestation-free soy and palm.",
+  "annual_budget_usd": 4000000.0,
+  "budget_basis": "Cargill revenue ~USD 160B; supply-chain transparency programmes (soy, palm, cocoa) use satellite monitoring; assume USD 4M. https://www.cargill.com/sustainability/land-use",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "S America",
+     "E Asia",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 30,
+     "isl_gb": 10,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 43200
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 40,
+    "value_per_job_usd": 150,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "S America",
+     "E Asia",
+     "Africa"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 6,
+     "isl_gb": 4,
+     "downlink_gb": 0.2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 7200
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 80,
+    "value_per_job_usd": 30,
+    "price_elasticity": 0.7
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "US corn/soy yield estimation",
+    "multiplier": 2.5,
+    "when": "Jul-Sep"
+   },
+   {
+    "trigger": "event",
+    "what": "EUDR compliance deadlines drive monitoring",
+    "multiplier": 1.5,
+    "when": "2026 onward"
+   }
+  ],
+  "sources": [
+   "https://www.cargill.com/sustainability/land-use",
+   "https://environment.ec.europa.eu/topics/forests/deforestation/regulation-deforestation-free-products_en"
+  ],
+  "unverified": [
+   "annual_budget_usd",
+   "per-job numbers",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "verra",
+  "name": "Verra",
+  "domain": "agri-climate-weather",
+  "country": "US",
+  "what_they_buy": "Independent imagery checks of REDD+ and ARR carbon project areas during verification and baseline updates.",
+  "annual_budget_usd": 1500000.0,
+  "budget_basis": "Verra registry covers 2,000+ projects; dMRV pilots; assume USD 1-2M/yr. https://verra.org/programs/verified-carbon-standard/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "S America",
+     "Africa",
+     "S Asia",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 3,
+     "mem_gb_h": 12,
+     "storage_gb": 40,
+     "isl_gb": 15,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 10,
+    "value_per_job_usd": 250,
+    "price_elasticity": 0.9
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Integrity reviews after media scrutiny of REDD+ credits",
+    "multiplier": 2,
+    "when": "after investigations"
+   },
+   {
+    "trigger": "growth",
+    "what": "Digital MRV rollout",
+    "multiplier": 1.3,
+    "when": "+30 %/yr"
+   }
+  ],
+  "sources": [
+   "https://verra.org/programs/verified-carbon-standard/",
+   "https://verra.org/"
+  ],
+  "unverified": [
+   "annual_budget_usd",
+   "per-job numbers",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "pachama",
+  "name": "Pachama",
+  "domain": "agri-climate-weather",
+  "country": "US",
+  "what_they_buy": "Forest canopy height and carbon stock mapping over project areas, plus model training on lidar-labelled imagery.",
+  "annual_budget_usd": 2000000.0,
+  "budget_basis": "Venture-funded (~USD 88M raised); imagery and compute are core cost; assume USD 2M. https://pachama.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "S America",
+     "N America",
+     "Africa"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 25,
+     "isl_gb": 8,
+     "downlink_gb": 1.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 259200,
+    "jobs_per_day": 15,
+    "value_per_job_usd": 90,
+    "price_elasticity": 1.0
+   },
+   {
+    "type": "train_model",
+    "regions": [
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 2000,
+     "mem_gb_h": 8000,
+     "storage_gb": 1500,
+     "isl_gb": 300,
+     "downlink_gb": 10
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 0.1,
+    "value_per_job_usd": 8000,
+    "price_elasticity": 1.0
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "growth",
+    "what": "New projects onboarded",
+    "multiplier": 1.3,
+    "when": "+30 %/yr"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "Cloud-free windows in the tropics",
+    "multiplier": 1.5,
+    "when": "dry season per region"
+   }
+  ],
+  "sources": [
+   "https://pachama.com/"
+  ],
+  "unverified": [
+   "funding total",
+   "annual_budget_usd",
+   "per-job numbers",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "wri-global-forest-watch",
+  "name": "World Resources Institute (Global Forest Watch)",
+  "domain": "agri-climate-weather",
+  "country": "US",
+  "what_they_buy": "Weekly tropical tree-cover-loss alerts (GLAD/RADD-style) processed onboard and relayed.",
+  "annual_budget_usd": 3000000.0,
+  "budget_basis": "GFW relies on donor-funded imagery; Norway's NICFI tropical imagery contract with Planet etc. was ~USD 43M over 2 years. https://www.nicfi.no/current/new-satellite-images-to-allow-anyone-anywhere-to-monitor-tropical-deforestation/",
+  "jobs": [
+   {
+    "type": "monitor_track",
+    "regions": [
+     "S America",
+     "Africa",
+     "E Asia",
+     "S Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 6,
+     "isl_gb": 4,
+     "downlink_gb": 0.2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 7200
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 150,
+    "value_per_job_usd": 15,
+    "price_elasticity": 0.7
+   },
+   {
+    "type": "store",
+    "regions": [
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.1,
+     "mem_gb_h": 0.5,
+     "storage_gb": 50000,
+     "isl_gb": 0,
+     "downlink_gb": 0
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 1,
+    "value_per_job_usd": 2000,
+    "price_elasticity": 0.9
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Dry-season clearing",
+    "multiplier": 2,
+    "when": "Jul-Oct (Amazon), Feb-Apr (SE Asia)"
+   },
+   {
+    "trigger": "event",
+    "what": "Donor programme renewal",
+    "multiplier": 1.5,
+    "when": "when NICFI-type contracts are renewed"
+   }
+  ],
+  "sources": [
+   "https://www.globalforestwatch.org/",
+   "https://www.nicfi.no/current/new-satellite-images-to-allow-anyone-anywhere-to-monitor-tropical-deforestation/"
+  ],
+  "unverified": [
+   "NICFI contract figure from memory",
+   "annual_budget_usd",
+   "per-job numbers",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "stora-enso",
+  "name": "Stora Enso",
+  "domain": "agri-climate-weather",
+  "country": "FI",
+  "what_they_buy": "Forest inventory, storm and bark beetle damage mapping for own and partner forests in Nordics and Baltics.",
+  "annual_budget_usd": 1500000.0,
+  "budget_basis": "Owns/manages ~2M ha forest land; assume ~USD 0.75/ha/yr remote sensing. https://www.storaenso.com/en/about-stora-enso/forests",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 15,
+     "isl_gb": 5,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 259200,
+    "jobs_per_day": 25,
+    "value_per_job_usd": 120,
+    "price_elasticity": 0.8
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 6,
+     "isl_gb": 4,
+     "downlink_gb": 0.2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 7200
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 20,
+    "value_per_job_usd": 40,
+    "price_elasticity": 0.7
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Storm felling: rapid damage mapping",
+    "multiplier": 4,
+    "when": "after autumn/winter storms"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "Bark beetle swarming",
+    "multiplier": 2,
+    "when": "May-Aug"
+   }
+  ],
+  "sources": [
+   "https://www.storaenso.com/en/about-stora-enso/forests"
+  ],
+  "unverified": [
+   "hectare figure",
+   "annual_budget_usd",
+   "per-job numbers",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "suzano",
+  "name": "Suzano",
+  "domain": "agri-climate-weather",
+  "country": "BR",
+  "what_they_buy": "Eucalyptus plantation growth, pest and fire monitoring across Brazilian plantations.",
+  "annual_budget_usd": 2000000.0,
+  "budget_basis": "~2.7M ha owned land incl. ~1.4M ha planted; assume ~USD 0.75/ha/yr. https://www.suzano.com.br/en/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "S America"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 15,
+     "isl_gb": 5,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 259200,
+    "jobs_per_day": 30,
+    "value_per_job_usd": 110,
+    "price_elasticity": 0.8
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "S America"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 6,
+     "isl_gb": 4,
+     "downlink_gb": 0.2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 7200
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 40,
+    "value_per_job_usd": 25,
+    "price_elasticity": 0.7
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Fire season",
+    "multiplier": 2.5,
+    "when": "Jul-Oct"
+   },
+   {
+    "trigger": "growth",
+    "what": "New Cerrado mill plantations",
+    "multiplier": 1.1,
+    "when": "+10 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.suzano.com.br/en/"
+  ],
+  "unverified": [
+   "land area figures",
+   "annual_budget_usd",
+   "per-job numbers",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "weyerhaeuser",
+  "name": "Weyerhaeuser",
+  "domain": "agri-climate-weather",
+  "country": "US",
+  "what_they_buy": "Timberland inventory, harvest verification and wildfire damage mapping; natural climate solutions carbon projects.",
+  "annual_budget_usd": 2000000.0,
+  "budget_basis": "~10M+ acres of US timberland; assume ~USD 0.2/acre/yr. https://www.weyerhaeuser.com/timberlands/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 15,
+     "isl_gb": 5,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 86400
+    },
+    "deadline_s": 259200,
+    "jobs_per_day": 30,
+    "value_per_job_usd": 120,
+    "price_elasticity": 0.8
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N America"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 6,
+     "isl_gb": 4,
+     "downlink_gb": 0.2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 7200
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 20,
+    "value_per_job_usd": 40,
+    "price_elasticity": 0.7
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Western US wildfire season",
+    "multiplier": 3,
+    "when": "Jul-Oct"
+   },
+   {
+    "trigger": "event",
+    "what": "Hurricane damage in southern pine",
+    "multiplier": 3,
+    "when": "after Gulf/Atlantic hurricanes"
+   }
+  ],
+  "sources": [
+   "https://www.weyerhaeuser.com/timberlands/"
+  ],
+  "unverified": [
+   "acreage",
+   "annual_budget_usd",
+   "per-job numbers",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "tomorrow-io",
+  "name": "Tomorrow.io",
+  "domain": "agri-climate-weather",
+  "country": "US",
+  "what_they_buy": "Relay and onboard processing of its own spaceborne radar and microwave sounder data for global weather intelligence.",
+  "annual_budget_usd": 6000000.0,
+  "budget_basis": "Launched Tomorrow-R1/R2 radar satellites (2023) and a microwave sounder constellation; NOAA commercial data contracts; assume USD 6M ground/relay/compute. https://www.tomorrow.io/space/",
+  "jobs": [
+   {
+    "type": "relay_data",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 4,
+     "storage_gb": 2,
+     "isl_gb": 15,
+     "downlink_gb": 15
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 600
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 300,
+    "value_per_job_usd": 15,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America",
+     "S Asia",
+     "Africa"
+    ],
+    "per_job": {
+     "cpu_core_h": 40,
+     "mem_gb_h": 160,
+     "storage_gb": 20,
+     "isl_gb": 30,
+     "downlink_gb": 3
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 24,
+    "value_per_job_usd": 120,
+    "price_elasticity": 0.7
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "growth",
+    "what": "Constellation expansion",
+    "multiplier": 1.5,
+    "when": "+50 %/yr"
+   },
+   {
+    "trigger": "event",
+    "what": "Hurricane and typhoon coverage",
+    "multiplier": 2,
+    "when": "tropical cyclone seasons"
+   }
+  ],
+  "sources": [
+   "https://www.tomorrow.io/space/"
+  ],
+  "unverified": [
+   "annual_budget_usd",
+   "per-job numbers",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ },
+ {
+  "id": "nestle",
+  "name": "Nestle",
+  "domain": "agri-climate-weather",
+  "country": "CH",
+  "what_they_buy": "Deforestation monitoring of palm oil, cocoa, soy and pulp supply sheds (Starling-style) for EUDR compliance.",
+  "annual_budget_usd": 2000000.0,
+  "budget_basis": "Nestle uses Starling (Airbus/Earthworm) satellite monitoring across its palm oil supply chain since 2018; assume USD 2M/yr incl. cocoa and soy. https://www.nestle.com/sustainability/nature-environment/deforestation-free",
+  "jobs": [
+   {
+    "type": "monitor_track",
+    "regions": [
+     "E Asia",
+     "Africa",
+     "S America"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 8,
+     "storage_gb": 6,
+     "isl_gb": 4,
+     "downlink_gb": 0.2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 7200
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 80,
+    "value_per_job_usd": 40,
+    "price_elasticity": 0.7
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "EUDR compliance reporting",
+    "multiplier": 1.8,
+    "when": "before EU deadlines"
+   },
+   {
+    "trigger": "event",
+    "what": "NGO grievance on a supplier",
+    "multiplier": 2,
+    "when": "after a public complaint"
+   }
+  ],
+  "sources": [
+   "https://www.nestle.com/sustainability/nature-environment/deforestation-free",
+   "https://www.earthworm.org/"
+  ],
+  "unverified": [
+   "annual_budget_usd",
+   "per-job numbers",
+   "budget_basis facts are from public knowledge; source page not re-read in this pass"
+  ]
+ }
+]

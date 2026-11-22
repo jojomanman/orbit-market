@@ -1,0 +1,1883 @@
+[
+ {
+  "id": "maersk",
+  "name": "A.P. Moller-Maersk",
+  "domain": "maritime-tech-telecom",
+  "country": "DK",
+  "what_they_buy": "Vessel tracking, port congestion imagery and onboard-processed weather routing for ~700 ships",
+  "annual_budget_usd": 6000000,
+  "budget_basis": "Maersk IT/tech spend is in the USD 1bn+ range (2023 annual report, ~USD 51bn revenue); assume ~0.5 % of that for space-derived data and orbital compute. https://investor.maersk.com/financials",
+  "jobs": [
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 4,
+     "storage_gb": 0.5,
+     "isl_gb": 1,
+     "downlink_gb": 0.2
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 600
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 400,
+    "value_per_job_usd": 40,
+    "price_elasticity": 0.8
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "E Asia",
+     "Europe",
+     "N America",
+     "S Asia",
+     "Middle East"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 16,
+     "storage_gb": 3,
+     "isl_gb": 3,
+     "downlink_gb": 0.3
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 3600
+    },
+    "deadline_s": 14400,
+    "jobs_per_day": 30,
+    "value_per_job_usd": 600,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific"
+    ],
+    "per_job": {
+     "cpu_core_h": 20,
+     "mem_gb_h": 64,
+     "storage_gb": 10,
+     "isl_gb": 5,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 1800
+    },
+    "deadline_s": 7200,
+    "jobs_per_day": 20,
+    "value_per_job_usd": 900,
+    "price_elasticity": 0.5
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Red Sea / Suez disruption: rerouting via Cape drives tracking and routing jobs",
+    "multiplier": 2.5,
+    "when": "after a chokepoint closure, weeks to months"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "Peak season imports to US and Europe",
+    "multiplier": 1.4,
+    "when": "Aug-Nov"
+   },
+   {
+    "trigger": "growth",
+    "what": "Fleet digitalisation",
+    "multiplier": 1.15,
+    "when": "+15 %/yr"
+   }
+  ],
+  "sources": [
+   "https://investor.maersk.com/financials",
+   "https://www.maersk.com/news/articles/2024/01/05/maersk-pauses-all-red-sea-gulf-of-aden-transits"
+  ],
+  "unverified": [
+   "space/compute share of IT spend",
+   "job sizes",
+   "jobs per day"
+  ]
+ },
+ {
+  "id": "msc",
+  "name": "Mediterranean Shipping Company",
+  "domain": "maritime-tech-telecom",
+  "country": "CH",
+  "what_they_buy": "Fleet tracking and port-approach imagery for the largest container fleet (~850 ships)",
+  "annual_budget_usd": 5000000,
+  "budget_basis": "Largest container line by capacity (~20 % share, Alphaliner); private, so budget scaled from Maersk by fleet size with a lower tech-spend ratio. https://alphaliner.axsmarine.com/PublicTop100/",
+  "jobs": [
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific"
+    ],
+    "per_job": {
+     "cpu_core_h": 2,
+     "mem_gb_h": 4,
+     "storage_gb": 0.5,
+     "isl_gb": 1,
+     "downlink_gb": 0.2
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 450,
+    "value_per_job_usd": 30,
+    "price_elasticity": 0.9
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "Europe",
+     "E Asia",
+     "Africa",
+     "S America"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 16,
+     "storage_gb": 3,
+     "isl_gb": 3,
+     "downlink_gb": 0.3
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 3600
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 20,
+    "value_per_job_usd": 500,
+    "price_elasticity": 0.8
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Chokepoint closure or port strike",
+    "multiplier": 2.0,
+    "when": "after Red Sea / port strike events"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "Pre-Chinese New Year export rush",
+    "multiplier": 1.3,
+    "when": "Dec-Jan"
+   }
+  ],
+  "sources": [
+   "https://alphaliner.axsmarine.com/PublicTop100/",
+   "https://www.msc.com/en/about-us"
+  ],
+  "unverified": [
+   "whole budget is an estimate (private company)",
+   "job mix"
+  ]
+ },
+ {
+  "id": "spire-global",
+  "name": "Spire Global",
+  "domain": "maritime-tech-telecom",
+  "country": "US",
+  "what_they_buy": "Relay and onboard processing of space-AIS, ADS-B and RF data to resell to maritime and aviation customers",
+  "annual_budget_usd": 8000000,
+  "budget_basis": "Spire revenue ~USD 110m (2023 10-K); ground station and data-processing cost is a large part of cost of revenue; assume ~7 % could move to an orbital market. https://ir.spire.com/",
+  "jobs": [
+   {
+    "type": "relay_data",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 1,
+     "storage_gb": 2,
+     "isl_gb": 20,
+     "downlink_gb": 18
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 120
+    },
+    "deadline_s": 600,
+    "jobs_per_day": 3000,
+    "value_per_job_usd": 8,
+    "price_elasticity": 1.2
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 4,
+     "mem_gb_h": 8,
+     "storage_gb": 2,
+     "isl_gb": 1,
+     "downlink_gb": 0.1
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 300
+    },
+    "deadline_s": 1800,
+    "jobs_per_day": 1500,
+    "value_per_job_usd": 6,
+    "price_elasticity": 1.0
+   },
+   {
+    "type": "store",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.1,
+     "mem_gb_h": 0.2,
+     "storage_gb": 50,
+     "isl_gb": 0,
+     "downlink_gb": 0
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 3600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 50,
+    "value_per_job_usd": 15,
+    "price_elasticity": 1.4
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "growth",
+    "what": "New data customers (weather RO, maritime)",
+    "multiplier": 1.2,
+    "when": "+20 %/yr"
+   },
+   {
+    "trigger": "event",
+    "what": "Hurricane season: more radio-occultation weather data requested",
+    "multiplier": 1.3,
+    "when": "Jun-Nov"
+   }
+  ],
+  "sources": [
+   "https://ir.spire.com/",
+   "https://spire.com/maritime/"
+  ],
+  "unverified": [
+   "share of cost addressable in orbit",
+   "per-job sizes"
+  ]
+ },
+ {
+  "id": "kpler-marinetraffic",
+  "name": "Kpler (owner of MarineTraffic and Spire Maritime)",
+  "domain": "maritime-tech-telecom",
+  "country": "FR",
+  "what_they_buy": "AIS fusion with SAR/optical ship detection to find dark vessels and verify cargo flows",
+  "annual_budget_usd": 7000000,
+  "budget_basis": "Kpler bought MarineTraffic (2023) and Spire Maritime (USD 241m deal announced Nov 2024); maritime data COGS assumed ~5 % of a ~USD 150m+ revenue base. https://www.kpler.com/press",
+  "jobs": [
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 2,
+     "storage_gb": 0.3,
+     "isl_gb": 2,
+     "downlink_gb": 0.3
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 300
+    },
+    "deadline_s": 1800,
+    "jobs_per_day": 2000,
+    "value_per_job_usd": 5,
+    "price_elasticity": 1.1
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "Middle East",
+     "N Asia",
+     "E Asia",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 10,
+     "mem_gb_h": 32,
+     "storage_gb": 6,
+     "isl_gb": 6,
+     "downlink_gb": 0.4
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 3600
+    },
+    "deadline_s": 10800,
+    "jobs_per_day": 60,
+    "value_per_job_usd": 350,
+    "price_elasticity": 0.7
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "New sanctions packages: shadow fleet STS transfer monitoring",
+    "multiplier": 2.0,
+    "when": "after EU/US sanctions rounds"
+   },
+   {
+    "trigger": "event",
+    "what": "Oil price shock / Hormuz tension",
+    "multiplier": 1.8,
+    "when": "during Gulf crises"
+   }
+  ],
+  "sources": [
+   "https://www.kpler.com/press",
+   "https://ir.spire.com/news-events/press-releases"
+  ],
+  "unverified": [
+   "Spire Maritime deal (USD 241m, Nov 2024) from memory, press page did not confirm",
+   "Kpler revenue (private)",
+   "budget share",
+   "job sizes"
+  ]
+ },
+ {
+  "id": "windward",
+  "name": "Windward",
+  "domain": "maritime-tech-telecom",
+  "country": "IL",
+  "what_they_buy": "Maritime AI risk scoring: AIS gaps, spoofing, dark-activity detection from SAR",
+  "annual_budget_usd": 2000000,
+  "budget_basis": "Acquired by FTV Capital for ~GBP 270m (2024); revenue ~USD 30m; assume ~7 % on data and compute. https://windward.ai/",
+  "jobs": [
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Middle East"
+    ],
+    "per_job": {
+     "cpu_core_h": 8,
+     "mem_gb_h": 24,
+     "storage_gb": 4,
+     "isl_gb": 2,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 600
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 150,
+    "value_per_job_usd": 60,
+    "price_elasticity": 0.9
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "Middle East",
+     "Europe",
+     "N Asia",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 10,
+     "mem_gb_h": 32,
+     "storage_gb": 6,
+     "isl_gb": 6,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 3600
+    },
+    "deadline_s": 10800,
+    "jobs_per_day": 15,
+    "value_per_job_usd": 300,
+    "price_elasticity": 0.8
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Sanctions and Black Sea/Red Sea incidents",
+    "multiplier": 2.0,
+    "when": "after geopolitical events"
+   },
+   {
+    "trigger": "growth",
+    "what": "Customer growth (insurers, banks, governments)",
+    "multiplier": 1.25,
+    "when": "+25 %/yr"
+   }
+  ],
+  "sources": [
+   "https://windward.ai/",
+   "https://www.ftvcapital.com/"
+  ],
+  "unverified": [
+   "revenue",
+   "budget share",
+   "all workload numbers"
+  ]
+ },
+ {
+  "id": "flexport",
+  "name": "Flexport",
+  "domain": "maritime-tech-telecom",
+  "country": "US",
+  "what_they_buy": "Port congestion and shipment ETA tracking fed into freight forwarding software",
+  "annual_budget_usd": 1500000,
+  "budget_basis": "Freight forwarder with USD ~2bn+ gross revenue; data spend assumed small (~0.1 %). https://www.flexport.com/",
+  "jobs": [
+   {
+    "type": "monitor_track",
+    "regions": [
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 2,
+     "storage_gb": 0.2,
+     "isl_gb": 0.5,
+     "downlink_gb": 0.1
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 1800
+    },
+    "deadline_s": 7200,
+    "jobs_per_day": 300,
+    "value_per_job_usd": 8,
+    "price_elasticity": 1.3
+   },
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "E Asia",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 4,
+     "mem_gb_h": 12,
+     "storage_gb": 2,
+     "isl_gb": 2,
+     "downlink_gb": 0.2
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 7200
+    },
+    "deadline_s": 43200,
+    "jobs_per_day": 6,
+    "value_per_job_usd": 250,
+    "price_elasticity": 1.1
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Peak shipping and holiday imports",
+    "multiplier": 1.5,
+    "when": "Aug-Nov"
+   },
+   {
+    "trigger": "event",
+    "what": "US tariff announcements: front-loading of imports",
+    "multiplier": 1.6,
+    "when": "weeks after tariff news"
+   }
+  ],
+  "sources": [
+   "https://www.flexport.com/"
+  ],
+  "unverified": [
+   "revenue and data spend",
+   "workload"
+  ]
+ },
+ {
+  "id": "dp-world",
+  "name": "DP World",
+  "domain": "maritime-tech-telecom",
+  "country": "AE",
+  "what_they_buy": "Imagery of its ~80 terminals and approaches, berth planning and inland logistics monitoring",
+  "annual_budget_usd": 3000000,
+  "budget_basis": "Revenue ~USD 18bn (2023); assume ~0.02 % for orbital data and compute. https://www.dpworld.com/en/investor-relations",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Middle East",
+     "Africa",
+     "S Asia",
+     "Europe",
+     "N America",
+     "S America",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 16,
+     "storage_gb": 3,
+     "isl_gb": 3,
+     "downlink_gb": 0.3
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 7200
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 25,
+    "value_per_job_usd": 400,
+    "price_elasticity": 0.7
+   },
+   {
+    "type": "monitor_track",
+    "regions": [
+     "Indian Ocean",
+     "N Atlantic",
+     "Middle East"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 2,
+     "storage_gb": 0.2,
+     "isl_gb": 0.5,
+     "downlink_gb": 0.1
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 200,
+    "value_per_job_usd": 10,
+    "price_elasticity": 0.9
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Red Sea diversion shifts traffic to Jebel Ali and African ports",
+    "multiplier": 1.5,
+    "when": "during Red Sea disruption"
+   },
+   {
+    "trigger": "growth",
+    "what": "New terminals and logistics parks",
+    "multiplier": 1.1,
+    "when": "+10 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.dpworld.com/en/investor-relations"
+  ],
+  "unverified": [
+   "budget share",
+   "workload"
+  ]
+ },
+ {
+  "id": "aws",
+  "name": "Amazon Web Services",
+  "domain": "maritime-tech-telecom",
+  "country": "US",
+  "what_they_buy": "Orbital compute and storage capacity to resell as an edge region, and downlink for AWS Ground Station customers",
+  "annual_budget_usd": 60000000,
+  "budget_basis": "AWS capex is tens of billions per year (Amazon 2024 capex > USD 75bn); a pilot orbital region at ~0.1 % of AWS capex; AWS Ground Station already sells downlink. https://aws.amazon.com/ground-station/",
+  "jobs": [
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 64,
+     "mem_gb_h": 256,
+     "storage_gb": 50,
+     "isl_gb": 20,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 60
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 800,
+    "value_per_job_usd": 120,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "store",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.2,
+     "mem_gb_h": 0.5,
+     "storage_gb": 500,
+     "isl_gb": 10,
+     "downlink_gb": 0
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 3600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 100,
+    "value_per_job_usd": 60,
+    "price_elasticity": 0.7
+   },
+   {
+    "type": "downlink_bulk",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 1,
+     "storage_gb": 20,
+     "isl_gb": 50,
+     "downlink_gb": 100
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 1800
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 400,
+    "value_per_job_usd": 50,
+    "price_elasticity": 0.8
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "growth",
+    "what": "AI inference demand at the edge",
+    "multiplier": 1.4,
+    "when": "+40 %/yr"
+   },
+   {
+    "trigger": "diurnal",
+    "what": "Follow-the-sun business-hours load",
+    "multiplier": 1.3,
+    "when": "local daytime"
+   }
+  ],
+  "sources": [
+   "https://aws.amazon.com/ground-station/",
+   "https://ir.aboutamazon.com/"
+  ],
+  "unverified": [
+   "whether AWS would buy orbital compute at all",
+   "size of pilot"
+  ]
+ },
+ {
+  "id": "microsoft-azure-space",
+  "name": "Microsoft Azure Space",
+  "domain": "maritime-tech-telecom",
+  "country": "US",
+  "what_they_buy": "Orbital edge compute for Azure Orbital customers and government cloud, plus ground-station downlink",
+  "annual_budget_usd": 40000000,
+  "budget_basis": "Microsoft capex ~USD 55bn+ in FY2024; Azure Space partners (SES, Viasat, Planet); pilot ~0.07 % of capex. https://azure.microsoft.com/en-us/solutions/space",
+  "jobs": [
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 48,
+     "mem_gb_h": 192,
+     "storage_gb": 40,
+     "isl_gb": 15,
+     "downlink_gb": 2
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 120
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 600,
+    "value_per_job_usd": 110,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "train_model",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 2000,
+     "mem_gb_h": 8000,
+     "storage_gb": 500,
+     "isl_gb": 200,
+     "downlink_gb": 5
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 86400
+    },
+    "deadline_s": 259200,
+    "jobs_per_day": 2,
+    "value_per_job_usd": 30000,
+    "price_elasticity": 0.5
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "growth",
+    "what": "AI workload growth",
+    "multiplier": 1.4,
+    "when": "+40 %/yr"
+   },
+   {
+    "trigger": "event",
+    "what": "Government cloud contract wins",
+    "multiplier": 1.5,
+    "when": "after award"
+   }
+  ],
+  "sources": [
+   "https://azure.microsoft.com/en-us/solutions/space",
+   "https://www.microsoft.com/en-us/investor"
+  ],
+  "unverified": [
+   "orbital compute appetite",
+   "training in orbit is speculative"
+  ]
+ },
+ {
+  "id": "google-cloud",
+  "name": "Google (Alphabet), Project Suncatcher",
+  "domain": "maritime-tech-telecom",
+  "country": "US",
+  "what_they_buy": "Solar-powered orbital TPU compute for ML training and inference",
+  "annual_budget_usd": 50000000,
+  "budget_basis": "Google announced Project Suncatcher (Nov 2025), with prototype satellites with Planet planned ~2027; Alphabet capex ~USD 90bn in 2025; R&D-scale buy assumed. https://research.google/blog/exploring-a-space-based-scalable-ai-infrastructure-system-design/",
+  "jobs": [
+   {
+    "type": "train_model",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 5000,
+     "mem_gb_h": 20000,
+     "storage_gb": 1000,
+     "isl_gb": 800,
+     "downlink_gb": 10
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 86400
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 1,
+    "value_per_job_usd": 60000,
+    "price_elasticity": 0.4
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 32,
+     "mem_gb_h": 128,
+     "storage_gb": 20,
+     "isl_gb": 10,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 60
+    },
+    "deadline_s": 1800,
+    "jobs_per_day": 1000,
+    "value_per_job_usd": 70,
+    "price_elasticity": 0.7
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "growth",
+    "what": "Scaling of orbital ML experiments",
+    "multiplier": 1.5,
+    "when": "+50 %/yr"
+   },
+   {
+    "trigger": "event",
+    "what": "Large model training run",
+    "multiplier": 3.0,
+    "when": "a few weeks per quarter"
+   }
+  ],
+  "sources": [
+   "https://research.google/blog/exploring-a-space-based-scalable-ai-infrastructure-system-design/",
+   "https://abc.xyz/investor/"
+  ],
+  "unverified": [
+   "budget",
+   "orbital share of Alphabet capex (Suncatcher + Planet prototypes by early 2027 confirmed on the blog)"
+  ]
+ },
+ {
+  "id": "openai",
+  "name": "OpenAI",
+  "domain": "maritime-tech-telecom",
+  "country": "US",
+  "what_they_buy": "Overflow GPU training and batch inference capacity",
+  "annual_budget_usd": 80000000,
+  "budget_basis": "Compute commitments in the USD tens of billions/yr (Stargate, Oracle, Microsoft deals); orbital share as a tiny experimental slice. https://openai.com/index/announcing-the-stargate-project/",
+  "jobs": [
+   {
+    "type": "train_model",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 8000,
+     "mem_gb_h": 32000,
+     "storage_gb": 2000,
+     "isl_gb": 1500,
+     "downlink_gb": 20
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 86400
+    },
+    "deadline_s": 604800,
+    "jobs_per_day": 1,
+    "value_per_job_usd": 80000,
+    "price_elasticity": 0.3
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 16,
+     "mem_gb_h": 64,
+     "storage_gb": 5,
+     "isl_gb": 5,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 30
+    },
+    "deadline_s": 600,
+    "jobs_per_day": 3000,
+    "value_per_job_usd": 20,
+    "price_elasticity": 1.0
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Model launch: inference spikes",
+    "multiplier": 2.5,
+    "when": "first 2 weeks after a release"
+   },
+   {
+    "trigger": "growth",
+    "what": "Compute demand",
+    "multiplier": 2.0,
+    "when": "+100 %/yr"
+   }
+  ],
+  "sources": [
+   "https://openai.com/index/announcing-the-stargate-project/"
+  ],
+  "unverified": [
+   "any orbital purchase is hypothetical",
+   "all workload numbers"
+  ]
+ },
+ {
+  "id": "nvidia",
+  "name": "NVIDIA",
+  "domain": "maritime-tech-telecom",
+  "country": "US",
+  "what_they_buy": "Test capacity for space-qualified GPUs and benchmark workloads (via partners like Starcloud)",
+  "annual_budget_usd": 5000000,
+  "budget_basis": "NVIDIA backs Starcloud (H100 launched 2025 via Inception programme); a test-and-showcase budget only. https://blogs.nvidia.com/",
+  "jobs": [
+   {
+    "type": "train_model",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 1000,
+     "mem_gb_h": 4000,
+     "storage_gb": 200,
+     "isl_gb": 50,
+     "downlink_gb": 5
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 86400
+    },
+    "deadline_s": 259200,
+    "jobs_per_day": 1,
+    "value_per_job_usd": 10000,
+    "price_elasticity": 0.6
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 16,
+     "mem_gb_h": 64,
+     "storage_gb": 10,
+     "isl_gb": 2,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 300
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 50,
+    "value_per_job_usd": 100,
+    "price_elasticity": 0.8
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "GTC conference demos",
+    "multiplier": 2.0,
+    "when": "Mar and Oct"
+   },
+   {
+    "trigger": "growth",
+    "what": "New GPU generation qualification",
+    "multiplier": 1.3,
+    "when": "+30 %/yr"
+   }
+  ],
+  "sources": [
+   "https://blogs.nvidia.com/",
+   "https://www.starcloud.com/"
+  ],
+  "unverified": [
+   "budget",
+   "workloads"
+  ]
+ },
+ {
+  "id": "tesla",
+  "name": "Tesla",
+  "domain": "maritime-tech-telecom",
+  "country": "US",
+  "what_they_buy": "Fleet telemetry relay from vehicles and imagery for map updates; batch training of driving models",
+  "annual_budget_usd": 15000000,
+  "budget_basis": "Tesla AI/compute capex several USD bn/yr (Cortex cluster); orbital slice for overflow training and remote telemetry. https://ir.tesla.com/",
+  "jobs": [
+   {
+    "type": "relay_data",
+    "regions": [
+     "N America",
+     "Europe",
+     "E Asia",
+     "Oceania"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 1,
+     "storage_gb": 5,
+     "isl_gb": 40,
+     "downlink_gb": 30
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 600
+    },
+    "deadline_s": 3600,
+    "jobs_per_day": 1500,
+    "value_per_job_usd": 10,
+    "price_elasticity": 1.0
+   },
+   {
+    "type": "train_model",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 3000,
+     "mem_gb_h": 12000,
+     "storage_gb": 1500,
+     "isl_gb": 600,
+     "downlink_gb": 50
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 86400
+    },
+    "deadline_s": 432000,
+    "jobs_per_day": 1,
+    "value_per_job_usd": 25000,
+    "price_elasticity": 0.5
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "growth",
+    "what": "Robotaxi and FSD fleet growth",
+    "multiplier": 1.5,
+    "when": "+50 %/yr"
+   },
+   {
+    "trigger": "event",
+    "what": "New FSD release: training sprint",
+    "multiplier": 2.0,
+    "when": "before major releases"
+   }
+  ],
+  "sources": [
+   "https://ir.tesla.com/"
+  ],
+  "unverified": [
+   "orbital purchase hypothetical",
+   "workloads"
+  ]
+ },
+ {
+  "id": "waymo",
+  "name": "Waymo",
+  "domain": "maritime-tech-telecom",
+  "country": "US",
+  "what_they_buy": "High-resolution imagery for map change detection in operating cities, and simulation compute",
+  "annual_budget_usd": 6000000,
+  "budget_basis": "Raised USD 5.6bn (Oct 2024); mapping/sim compute assumed ~0.5 % of yearly burn. https://waymo.com/blog/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "N America",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 8,
+     "mem_gb_h": 24,
+     "storage_gb": 3,
+     "isl_gb": 3,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 7200
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 40,
+    "value_per_job_usd": 500,
+    "price_elasticity": 0.7
+   },
+   {
+    "type": "train_model",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 1500,
+     "mem_gb_h": 6000,
+     "storage_gb": 400,
+     "isl_gb": 100,
+     "downlink_gb": 5
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 86400
+    },
+    "deadline_s": 259200,
+    "jobs_per_day": 1,
+    "value_per_job_usd": 15000,
+    "price_elasticity": 0.5
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "growth",
+    "what": "New city launches",
+    "multiplier": 1.6,
+    "when": "+60 %/yr"
+   },
+   {
+    "trigger": "event",
+    "what": "City launch: full map refresh",
+    "multiplier": 3.0,
+    "when": "2 months before a new city opens"
+   }
+  ],
+  "sources": [
+   "https://waymo.com/blog/"
+  ],
+  "unverified": [
+   "budget share",
+   "workloads"
+  ]
+ },
+ {
+  "id": "here-technologies",
+  "name": "HERE Technologies",
+  "domain": "maritime-tech-telecom",
+  "country": "NL",
+  "what_they_buy": "Imagery for road map updates and change detection worldwide",
+  "annual_budget_usd": 4000000,
+  "budget_basis": "Revenue ~EUR 1bn; owned by German carmakers; satellite imagery licensing assumed ~0.4 %. https://www.here.com/",
+  "jobs": [
+   {
+    "type": "image_area",
+    "regions": [
+     "Europe",
+     "N America",
+     "E Asia",
+     "S Asia",
+     "Middle East",
+     "S America"
+    ],
+    "per_job": {
+     "cpu_core_h": 6,
+     "mem_gb_h": 16,
+     "storage_gb": 3,
+     "isl_gb": 3,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 86400
+    },
+    "deadline_s": 172800,
+    "jobs_per_day": 80,
+    "value_per_job_usd": 120,
+    "price_elasticity": 1.0
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "Europe",
+     "N America",
+     "E Asia"
+    ],
+    "per_job": {
+     "cpu_core_h": 8,
+     "mem_gb_h": 24,
+     "storage_gb": 3,
+     "isl_gb": 1,
+     "downlink_gb": 0.05
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 3600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 60,
+    "value_per_job_usd": 80,
+    "price_elasticity": 0.9
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Low cloud in summer: optical collection window",
+    "multiplier": 1.4,
+    "when": "May-Sep (N hemisphere)"
+   },
+   {
+    "trigger": "growth",
+    "what": "HD maps for ADAS",
+    "multiplier": 1.15,
+    "when": "+15 %/yr"
+   }
+  ],
+  "sources": [
+   "https://www.here.com/"
+  ],
+  "unverified": [
+   "revenue",
+   "imagery spend",
+   "workloads"
+  ]
+ },
+ {
+  "id": "tmobile-us",
+  "name": "T-Mobile US",
+  "domain": "maritime-tech-telecom",
+  "country": "US",
+  "what_they_buy": "Direct-to-cell relay capacity and backhaul through inter-satellite links for coverage gaps",
+  "annual_budget_usd": 20000000,
+  "budget_basis": "T-Satellite with Starlink launched July 2025 (USD 10/month add-on); budget assumes tens of thousands of active users times wholesale share. https://www.t-mobile.com/coverage/satellite-phone-service",
+  "jobs": [
+   {
+    "type": "relay_data",
+    "regions": [
+     "N America",
+     "N Pacific",
+     "N Atlantic",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.1,
+     "mem_gb_h": 0.2,
+     "storage_gb": 0.01,
+     "isl_gb": 5,
+     "downlink_gb": 5
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 2
+    },
+    "deadline_s": 30,
+    "jobs_per_day": 50000,
+    "value_per_job_usd": 0.5,
+    "price_elasticity": 1.2
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Hurricanes and wildfires take down towers",
+    "multiplier": 5.0,
+    "when": "days after a disaster"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "Summer outdoor and hiking traffic",
+    "multiplier": 1.4,
+    "when": "Jun-Aug"
+   },
+   {
+    "trigger": "diurnal",
+    "what": "Evening messaging peak",
+    "multiplier": 1.5,
+    "when": "local 18-22"
+   }
+  ],
+  "sources": [
+   "https://www.t-mobile.com/coverage/satellite-phone-service",
+   "https://www.starlink.com/business/direct-to-cell"
+  ],
+  "unverified": [
+   "wholesale budget",
+   "per-job traffic"
+  ]
+ },
+ {
+  "id": "vodafone",
+  "name": "Vodafone Group",
+  "domain": "maritime-tech-telecom",
+  "country": "GB",
+  "what_they_buy": "Direct-to-smartphone relay (AST SpaceMobile partner) and rural backhaul in Europe and Africa",
+  "annual_budget_usd": 15000000,
+  "budget_basis": "Vodafone and AST SpaceMobile formed SatCo JV for Europe (2025); Vodafone capex ~EUR 8bn/yr; satellite relay pilot share assumed. https://www.vodafone.com/news",
+  "jobs": [
+   {
+    "type": "relay_data",
+    "regions": [
+     "Europe",
+     "Africa",
+     "N Atlantic"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.1,
+     "mem_gb_h": 0.2,
+     "storage_gb": 0.01,
+     "isl_gb": 5,
+     "downlink_gb": 5
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 2
+    },
+    "deadline_s": 30,
+    "jobs_per_day": 30000,
+    "value_per_job_usd": 0.5,
+    "price_elasticity": 1.2
+   },
+   {
+    "type": "relay_data",
+    "regions": [
+     "Africa"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.5,
+     "mem_gb_h": 1,
+     "storage_gb": 1,
+     "isl_gb": 200,
+     "downlink_gb": 150
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 1
+    },
+    "deadline_s": 60,
+    "jobs_per_day": 2000,
+    "value_per_job_usd": 6,
+    "price_elasticity": 1.0
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Storm or flood outages",
+    "multiplier": 4.0,
+    "when": "days after the event"
+   },
+   {
+    "trigger": "growth",
+    "what": "Commercial D2C launch",
+    "multiplier": 2.0,
+    "when": "+100 %/yr first years"
+   }
+  ],
+  "sources": [
+   "https://www.vodafone.com/news",
+   "https://ast-science.com/"
+  ],
+  "unverified": [
+   "budget",
+   "workloads, second job is backhaul for rural cells"
+  ]
+ },
+ {
+  "id": "viasat-inmarsat-maritime",
+  "name": "Inmarsat Maritime (Viasat)",
+  "domain": "maritime-tech-telecom",
+  "country": "GB",
+  "what_they_buy": "Wholesale relay capacity for Fleet Xpress ship broadband during congestion",
+  "annual_budget_usd": 25000000,
+  "budget_basis": "Viasat maritime revenue is several hundred USD m/yr; buying ~5 % as overflow capacity. https://investors.viasat.com/",
+  "jobs": [
+   {
+    "type": "relay_data",
+    "regions": [
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.2,
+     "mem_gb_h": 0.5,
+     "storage_gb": 0.1,
+     "isl_gb": 30,
+     "downlink_gb": 25
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 1
+    },
+    "deadline_s": 60,
+    "jobs_per_day": 20000,
+    "value_per_job_usd": 4,
+    "price_elasticity": 1.1
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "diurnal",
+    "what": "Crew internet in the evening (ship local time)",
+    "multiplier": 1.8,
+    "when": "local 18-24"
+   },
+   {
+    "trigger": "growth",
+    "what": "Bandwidth per ship",
+    "multiplier": 1.25,
+    "when": "+25 %/yr"
+   }
+  ],
+  "sources": [
+   "https://investors.viasat.com/",
+   "https://www.inmarsat.com/en/solutions-services/maritime.html"
+  ],
+  "unverified": [
+   "maritime revenue split",
+   "overflow share"
+  ]
+ },
+ {
+  "id": "samsara",
+  "name": "Samsara",
+  "domain": "maritime-tech-telecom",
+  "country": "US",
+  "what_they_buy": "Relay of IoT telematics from trucks and equipment outside cell coverage",
+  "annual_budget_usd": 3000000,
+  "budget_basis": "Revenue ~USD 1.25bn (FY2025); connected devices in the millions; satellite fallback assumed ~0.25 % of revenue. https://investors.samsara.com/",
+  "jobs": [
+   {
+    "type": "relay_data",
+    "regions": [
+     "N America",
+     "Europe",
+     "Oceania",
+     "S America"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.01,
+     "mem_gb_h": 0.02,
+     "storage_gb": 0.001,
+     "isl_gb": 0.01,
+     "downlink_gb": 0.01
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 60
+    },
+    "deadline_s": 600,
+    "jobs_per_day": 400000,
+    "value_per_job_usd": 0.02,
+    "price_elasticity": 1.4
+   },
+   {
+    "type": "store",
+    "regions": [
+     "N America",
+     "Europe"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.1,
+     "mem_gb_h": 0.2,
+     "storage_gb": 100,
+     "isl_gb": 0,
+     "downlink_gb": 1
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 3600
+    },
+    "deadline_s": 86400,
+    "jobs_per_day": 20,
+    "value_per_job_usd": 20,
+    "price_elasticity": 1.2
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "seasonal",
+    "what": "Harvest and construction season fleet activity",
+    "multiplier": 1.3,
+    "when": "Apr-Oct"
+   },
+   {
+    "trigger": "growth",
+    "what": "Device base",
+    "multiplier": 1.3,
+    "when": "+30 %/yr"
+   }
+  ],
+  "sources": [
+   "https://investors.samsara.com/"
+  ],
+  "unverified": [
+   "satellite share",
+   "message sizes"
+  ]
+ },
+ {
+  "id": "planet-labs",
+  "name": "Planet Labs",
+  "domain": "maritime-tech-telecom",
+  "country": "US",
+  "what_they_buy": "Inter-satellite relay, onboard AI preprocessing and bulk downlink to reduce ground station cost",
+  "annual_budget_usd": 12000000,
+  "budget_basis": "Revenue ~USD 245m (FY2025); ground segment and cloud cost part of COGS; ~5 % moved to orbit. https://investors.planet.com/",
+  "jobs": [
+   {
+    "type": "downlink_bulk",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 1,
+     "mem_gb_h": 2,
+     "storage_gb": 100,
+     "isl_gb": 200,
+     "downlink_gb": 200
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 3600
+    },
+    "deadline_s": 21600,
+    "jobs_per_day": 150,
+    "value_per_job_usd": 120,
+    "price_elasticity": 0.9
+   },
+   {
+    "type": "process_onboard",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 16,
+     "mem_gb_h": 64,
+     "storage_gb": 20,
+     "isl_gb": 2,
+     "downlink_gb": 0.5
+    },
+    "latency": {
+     "kind": "p50",
+     "seconds": 900
+    },
+    "deadline_s": 7200,
+    "jobs_per_day": 400,
+    "value_per_job_usd": 25,
+    "price_elasticity": 0.8
+   },
+   {
+    "type": "relay_data",
+    "regions": [
+     "N America",
+     "S America",
+     "Europe",
+     "Africa",
+     "Middle East",
+     "S Asia",
+     "E Asia",
+     "N Asia",
+     "Oceania",
+     "N Atlantic",
+     "S Atlantic",
+     "Indian Ocean",
+     "N Pacific",
+     "S Pacific",
+     "Polar"
+    ],
+    "per_job": {
+     "cpu_core_h": 0.2,
+     "mem_gb_h": 0.5,
+     "storage_gb": 5,
+     "isl_gb": 30,
+     "downlink_gb": 30
+    },
+    "latency": {
+     "kind": "max",
+     "seconds": 300
+    },
+    "deadline_s": 1800,
+    "jobs_per_day": 600,
+    "value_per_job_usd": 10,
+    "price_elasticity": 1.0
+   }
+  ],
+  "need_changes": [
+   {
+    "trigger": "event",
+    "what": "Disasters and conflicts: tasking surges",
+    "multiplier": 2.5,
+    "when": "after major events"
+   },
+   {
+    "trigger": "seasonal",
+    "what": "Northern summer agriculture collection",
+    "multiplier": 1.3,
+    "when": "May-Sep"
+   }
+  ],
+  "sources": [
+   "https://investors.planet.com/"
+  ],
+  "unverified": [
+   "COGS share",
+   "workloads"
+  ]
+ }
+]

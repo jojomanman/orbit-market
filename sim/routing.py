@@ -12,25 +12,37 @@ from scipy.sparse.csgraph import dijkstra
 from . import physics as ph
 from .orbit import C_KM_S
 
-CONGESTED_S = 10.0   # weight of a link at >= 95 % load: usable only if nothing else exists
+LAMBDA_USD_PER_GB_S = 0.1   # what a second of delay is worth per GB when choosing a route
+CONGESTED = 1e3             # weight of a link at >= 98 % load: usable only if nothing else exists
 
 
-def weight_congestion(d_km, cap, load):
-    """Expected delay per hop: light time + processing + M/M/1 queueing at the last measured load."""
-    w = ph.link_delay_s(d_km, cap, load)
-    return np.where(load >= 0.95 * cap, CONGESTED_S, w)
+def weight_price(net, pr, prev_load, gs_links):
+    """Route cost per GB = sum of link prices + station price (LMP congestion term) + a small delay penalty, so data
+    flows to the cheapest reachable ground station and hot links price themselves out."""
+    isl_load, dl_load, gs_load = prev_load
+    up = net.isl_idx
+    d = net.isl_km_all[up]
+    cap = net.isl_cap_all[up]
+    w_isl = pr.isl[up] + LAMBDA_USD_PER_GB_S * ph.link_delay_s(d, cap, isl_load[up])
+    w_isl = np.where(isl_load[up] >= 0.98 * cap, CONGESTED, w_isl)
+    gsat, gst, gd = gs_links
+    w_gs = pr.dl[gsat] + pr.gs[gst] + LAMBDA_USD_PER_GB_S * gd / C_KM_S
+    w_gs = np.where((dl_load[gsat] >= 0.98 * net.dl_cap[gsat]) | (gs_load[gst] >= 0.98 * net.gs_cap[gst]),
+                    CONGESTED, w_gs)
+    return w_isl, w_gs
 
 
-def weight_distance(d_km, cap, load):
-    """Light time + processing only: the classic shortest path, blind to congestion (baseline)."""
-    return d_km / C_KM_S + ph.HOP_PROC_S
+def weight_distance(net, pr, prev_load, gs_links):
+    """Light time + processing only: the classic shortest path, blind to price and congestion (baseline)."""
+    d = net.isl_km_all[net.isl_idx]
+    return d / C_KM_S + ph.HOP_PROC_S, gs_links[2] / C_KM_S + ph.HOP_PROC_S
 
 
-ROUTERS = {"congestion": weight_congestion, "distance": weight_distance}
+ROUTERS = {"price": weight_price, "distance": weight_distance}
 
 
 class Network:
-    def __init__(self, con, geo, fleet, prev_load, weight_fn):
+    def __init__(self, con, geo, fleet, prev_load, weight_fn, prices):
         n, g = con.n_sats, len(con.gs_lat)
         self.n, self.g, self.sink = n, g, n + g
         up = geo.isl_up
@@ -46,11 +58,9 @@ class Network:
         self.isl_res = self.isl_cap_all.copy()
         self.dl_res = self.dl_cap.copy()
         self.gs_res = self.gs_cap.copy()
-        isl_load, dl_load, gs_load = prev_load
-        w_isl = weight_fn(d, self.isl_cap_all[up], isl_load[up])
         gl = geo.gs_links
         gsat, gst, gd = gl[:, 0].astype(int), gl[:, 1].astype(int), gl[:, 2]
-        w_gs = weight_fn(gd, self.dl_cap[gsat], dl_load[gsat]) + weight_fn(0 * gd, self.gs_cap[gst], gs_load[gst])
+        w_isl, w_gs = weight_fn(self, prices, prev_load, (gsat, gst, gd))
         self.edge_key = {}
         for k, (a, b) in enumerate(zip(u.tolist(), v.tolist())):
             self.edge_key[(a, b)] = self.edge_key[(b, a)] = self.isl_idx[k]
@@ -64,6 +74,23 @@ class Network:
                                     shape=(size, size))
         self._ground_dist, self._ground_pred = dijkstra(self.ground_graph, indices=self.sink,
                                                         return_predecessors=True)
+        self.ground_cost = self._tree_price(prices)
+
+    def _tree_price(self, pr):
+        """$/GB from every satellite to the ground along the routing tree, whatever the router optimised."""
+        n = self.n
+        cost = np.full(n + self.g + 1, np.inf)
+        cost[self.sink] = 0.0
+        for g in range(self.g):
+            cost[n + g] = pr.gs[g]
+        pred = self._ground_pred
+        for node in np.argsort(self._ground_dist[:n]).tolist():
+            if not np.isfinite(self._ground_dist[node]):
+                break
+            nxt = pred[node]
+            hop = pr.dl[node] if nxt >= n else pr.isl[self.edge_key[(node, int(nxt))]]
+            cost[node] = cost[nxt] + hop
+        return cost[:n]
 
     def path_to_ground(self, sat):
         """[sat, ..., sat, station_node] or None. pred points from each node back toward the sink."""
@@ -116,6 +143,18 @@ class Network:
         res = {"isl": self.isl_res, "dl": self.dl_res, "gs": self.gs_res}
         for k, i in self.hops(path):
             res[k][i] -= gbps
+
+    def bottleneck_util(self, path):
+        res = {"isl": (self.isl_res, self.isl_cap_all), "dl": (self.dl_res, self.dl_cap), "gs": (self.gs_res, self.gs_cap)}
+        return max((1 - res[k][0][i] / max(res[k][1][i], 1e-9) for k, i in self.hops(path)), default=0.0)
+
+    def blame(self, path, gbps, unmet):
+        """Unserved rate counts as unmet demand on the path's tightest good."""
+        res = {"isl": self.isl_res, "dl": self.dl_res, "gs": self.gs_res}
+        hops = list(self.hops(path))
+        if hops:
+            k, i = min(hops, key=lambda h: res[h[0]][h[1]])
+            unmet[k][i] += gbps
 
     def latency_s(self, path, prev_load, quantile):
         isl_load = prev_load[0]
