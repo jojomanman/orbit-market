@@ -490,7 +490,7 @@ class Engine:
                 continue
             s, job = t["sat"], t["job"]
             self.ledger.release(job, "compute")
-            job["computed_t"] = now
+            job["computed_t"] = now + dt + float(t["left"] / max(rate[s], 1e-9))   # exact end inside the tick
             self.units_used[s] -= job["units"]
             self.mem_used[s] -= job["mem"]
             if job["out_gb"] > 0.01:

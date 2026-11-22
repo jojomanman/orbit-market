@@ -143,9 +143,11 @@ function propagate(t) {
 
 // ---- state ------------------------------------------------------------------------------------------------------
 let state = null, routes = [];
-// Smooth clock: advance at the server's measured sim rate every frame and steer gently toward the server, so a slow
-// or late tick never makes the satellites jump.
-let simT = null, rate = 60, lastSrv = null;
+// Constant-rate clock (Jonas 16:24 "playback speed changes"): the server states its sim rate (api/state speed) and
+// the view runs at exactly rate x play. At 1x, drift against the server is slewed at 2 % and only past one wall
+// second of error, so it is never visible; a jump happens only after a server restart.
+let simT = null, rate = 30, lastSrv = null;
+const srvTime = () => lastSrv.t + (performance.now() - lastSrv.at) / 1000 * rate;
 const history = [];
 
 async function poll() {
@@ -153,7 +155,7 @@ async function poll() {
     const s = await (await fetch("api/state?mode=" + mode, { cache: "no-store" })).json();
     if (!s.modes) return;
     const now = performance.now();
-    if (lastSrv && s.t > lastSrv.t) rate = 0.8 * rate + 0.2 * (s.t - lastSrv.t) / ((now - lastSrv.at) / 1000);
+    if (s.speed) rate = s.speed;
     if (!lastSrv || s.t !== lastSrv.t) lastSrv = { t: s.t, at: now };
     if (simT === null) simT = s.t;
     state = s;
@@ -172,14 +174,12 @@ async function poll() {
 
 let lastFrame = performance.now();
 function simTime() {
-  const now = performance.now(), dt = Math.min(0.1, (now - lastFrame) / 1000);
+  const now = performance.now(), dt = Math.min(1, (now - lastFrame) / 1000);
   lastFrame = now;
   if (simT === null) return Date.now() / 1000;
-  // Paused or replayed faster, the view runs on its own clock. At 1x it follows the server by running up to 3x
-  // faster or slower, never backwards: a late tick under load used to pull the globe back every few seconds.
-  const err = play === 1 ? lastSrv.t + (now - lastSrv.at) / 1000 * rate - simT : 0;
+  const err = play === 1 ? srvTime() - simT : 0;
   if (Math.abs(err) > 600) simT += err;   // server restarted or a long pause: jump once instead of crawling
-  else simT += dt * rate * play * Math.min(3, Math.max(0, 1 + err / (2 * rate)));
+  else simT += dt * rate * play * (Math.abs(err) > rate ? 1 + 0.02 * Math.sign(err) : 1);
   return simT;
 }
 
@@ -187,7 +187,7 @@ function simTime() {
 const SPEEDS = [0.25, 1, 4, 16, 60];
 let play = 1, speed = 1, liveView = true, overview = null;
 function setPlay(p) {
-  if (p === 1 && play !== 1 && lastSrv) simT = lastSrv.t + (performance.now() - lastSrv.at) / 1000 * rate;
+  if (p === 1 && play !== 1 && lastSrv) simT = srvTime();
   if (p) speed = p;
   play = p;
   $("pause").textContent = play ? "Pause" : "Play";
@@ -816,7 +816,7 @@ function frame() {
     earth.updateMatrixWorld();
     propagate(t);
     drawRoutes(1 / 60);
-    overview.frame(play);
+    overview.frame(play, play === 1 || !play || !lastSrv ? live : srvTime(), rate);
   }
   controls.update();
   renderer.render(scene, camera);

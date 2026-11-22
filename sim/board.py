@@ -105,21 +105,34 @@ MAX_TASKS, MAX_FLOWS, TICKER = 900, 400, 14
 def flows(engine, orgs, now, tick_s, n_sats):
     """Everything in motion in one market, for the main page's Live mode (Jonas 15:11: "the live view of all the
     ongoing trades and data transfer ... a lot going on at once"). Compact arrays, built once per tick like build():
-    tasks [entry sat, uplink node or -1, type, progress], flows [path, Gbps, type, progress], trades placed this tick
-    [lat, lon, type, sat, uplink node or -1] and a ticker of the newest placements. Ground nodes are n_sats + station
-    index, as in api/state routes."""
+    tasks [entry sat, uplink node or -1, type, job id, start, end], flows [path, Gbps, type, job id, start, end],
+    trades placed this tick [lat, lon, type, arrival] and a ticker of the newest placements. Ground nodes are
+    n_sats + station index, as in api/state routes.
+
+    Start and end are sim times, so the page can schedule each appearance and removal at its own instant (one tick
+    behind) instead of changing every link at the poll (Jonas 16:24 "Why does the links update at the same time"):
+    a task starts at its arrival (matching is per arrival) and ends when its compute is through at the current rate;
+    a flow starts when its compute finished (computed_t is exact inside the tick) or at arrival for transfers, and
+    ends when its bits are through at the current rate. The engine integrates in whole ticks, so a job's compute ends
+    and its bits finish on tick boundaries; every time of a job is shifted by its arrival's offset into its tick
+    (`off`), which keeps the sim's durations and spreads events the way arrivals really are. `now` is the tick's
+    start. Ids are stable across ticks: the job id."""
     by_id = {o["id"]: o for o in orgs}
     gs = lambda j: n_sats + j["uplink_gs"] if "uplink_gs" in j else -1
     typ = lambda j: TYPE.get(j.get("ctype"), 1 if j["kind"] == "batch" else 2 if j["kind"] == "relay" else 0)
-    tasks = [[int(t["sat"]), gs(t["job"]), typ(t["job"]), round(1 - t["left"] / max(t["job"]["duration"], 1e-9), 3)]
-             for t in list(engine.tasks)[-MAX_TASKS:]]
+    off = lambda j: j["arrival"] - j["placed"]["t"] if "placed" in j else 0.0
+    end = now + tick_s
+    tasks = [[int(t["sat"]), gs(t["job"]), typ(t["job"]), str(t["job"]["id"]), round(t["job"]["arrival"], 1),
+              round(end + max(t["left"], 0.0) + off(t["job"]), 1)] for t in list(engine.tasks)[-MAX_TASKS:]]
     moving = sorted((f for f in list(engine.flows) if f.get("path") and f.get("rate", 0) > 0), key=lambda f: -f["rate"])
-    fl = [[[int(n) for n in f["path"]], round(f["rate"], 3), typ(f["job"]),
-           round(1 - f["gb_left"] / max(f["job"]["out_gb"], 1e-9), 3)] for f in moving[:MAX_FLOWS]]
+    fl = [[[int(n) for n in f["path"]], round(f["rate"], 3), typ(f["job"]), str(f["job"]["id"]),
+           round(f["job"]["computed_t"] + off(f["job"]) if "computed_t" in f["job"] else f["job"]["arrival"], 1),
+           round(end + f["gb_left"] * 8 / f["rate"] + off(f["job"]), 1)]
+          for f in moving[:MAX_FLOWS]]
     placed = [j for j in [t["job"] for t in list(engine.tasks)] + [f["job"] for f in list(engine.flows)]
               if j.get("placed", {}).get("t", -1) >= now and j.get("customer") in by_id]
     placed.sort(key=lambda j: -j["arrival"])
-    new = [[round(j["location"][0], 2), round(j["location"][1], 2), typ(j), int(j["placed"]["sat"]), gs(j)]
+    new = [[round(j["location"][0], 2), round(j["location"][1], 2), typ(j), round(j["arrival"], 1)]
            for j in placed if j.get("location")]
     ticker = [{"id": f"{j['id']}-{j['arrival']:.0f}", "c": short_name(by_id[j["customer"]]),
                "k": j.get("ctype", j["kind"]).replace("_", " "), "y": typ(j), "usd": round(j["placed"]["price"], 2),
@@ -128,6 +141,6 @@ def flows(engine, orgs, now, tick_s, n_sats):
               for j in placed[:TICKER]]
     cut = now - WINDOW_S
     paid = [u for t, u in list(engine.paid) if t >= cut]
-    return {"t": now, "tasks": tasks, "flows": fl, "new": new, "ticker": ticker,
+    return {"t": now, "tick": tick_s, "tasks": tasks, "flows": fl, "new": new, "ticker": ticker,
             "gbps": round(sum(f["rate"] for f in moving), 1), "running": len(engine.tasks),
             "per_min": {"trades": round(len(paid) * 60 / WINDOW_S, 1), "usd": round(sum(paid) * 60 / WINDOW_S, 2)}}
