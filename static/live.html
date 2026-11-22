@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbit Market · Live</title>
+<style>
+:root {
+  --bg: #07090c; --panel: #0c1015; --line: #1a2129; --text: #c9d1d9; --dim: #6b7681;
+  --a: #7cc4ff; --b: #ffb35c; --c: #8fd19e; --r: #e5747a; --u: 8px;
+  font: 13px/1.4 ui-sans-serif, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); overflow: hidden; }
+body { display: grid; grid-template-rows: auto 1fr; padding: calc(3 * var(--u)); gap: calc(3 * var(--u)); }
+a { color: var(--dim); text-decoration: none; } a:hover { color: var(--text); }
+header { display: grid; grid-template-columns: auto auto 1fr; gap: calc(3 * var(--u)); align-items: baseline; }
+h1 { font-size: 15px; font-weight: 600; letter-spacing: .02em; }
+nav { display: flex; gap: calc(2 * var(--u)); }
+#rates { display: flex; justify-content: flex-end; gap: calc(4 * var(--u)); }
+#rates div { text-align: right; }
+#rates b { display: block; font-size: 22px; font-weight: 600; color: var(--b); }
+#rates span, .label { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+#board { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)) minmax(0, .7fr); gap: var(--u); min-height: 0; }
+.col { display: grid; grid-template-rows: auto 1fr auto; background: var(--panel); border: 1px solid var(--line);
+  min-height: 0; overflow: hidden; }
+.col > header { display: grid; grid-template-columns: 1fr auto; padding: var(--u); border-bottom: 1px solid var(--line); }
+.col > header b { font-size: 18px; font-weight: 600; text-align: right; }
+.col[data-s=delivered] > header b { color: var(--c); }
+.col[data-s=rejected] > header b { color: var(--r); }
+.list { display: flex; flex-direction: column; gap: 4px; padding: 4px; overflow: hidden; }
+.more { color: var(--dim); font-size: 11px; text-align: right; padding: 0 var(--u) 4px; min-height: 19px; }
+.card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--u); padding: 5px 7px;
+  background: var(--bg); border: 1px solid var(--line); border-left: 2px solid var(--a); font-size: 12px;
+  transition: opacity .6s; will-change: transform; }
+.card .c { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .v { text-align: right; }
+.card .k, .card .d { color: var(--dim); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .d { text-align: right; }
+.card.delivered { border-left-color: var(--c); }
+.card.rejected { border-left-color: var(--r); }
+.card.rejected .d { color: var(--r); }
+.card.new { opacity: 0; }
+.card.gone { opacity: 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Orbit Market · Live</h1>
+  <nav><a href="./">Globe</a><a href="network">Network</a></nav>
+  <div id="rates">
+    <div><b id="jobs">0</b><span>delivered / min</span></div>
+    <div><b id="usd">$0</b><span>paid / min</span></div>
+  </div>
+</header>
+<div id="board"></div>
+<script>
+// Columns in the engine's order (sim/board.py); a card always travels left to right through them.
+const STAGES = [["incoming", "Incoming"], ["quoted", "Quoted"], ["matched", "Matched"], ["uplink", "Uplink"],
+  ["compute", "Compute"], ["relay", "Relay"], ["downlink", "Downlink"], ["delivered", "Delivered"],
+  ["rejected", "Rejected"]];
+const ORDER = Object.fromEntries(STAGES.map(([s], i) => [s, i]));
+const POLL_MS = 400, HOP_MS = 260, LINGER_MS = 3500;
+const board = document.getElementById("board");
+const cols = {};
+for (const [s, name] of STAGES) {
+  const el = document.createElement("section");
+  el.className = "col"; el.dataset.s = s;
+  el.innerHTML = `<header><span class="label">${name}</span><b>0</b></header><div class="list"></div><div class="more"></div>`;
+  board.append(el);
+  cols[s] = {list: el.querySelector(".list"), count: el.querySelector("b"), more: el.querySelector(".more"), n: 0};
+}
+const cards = new Map();   // id -> {el, s: column shown, path: columns still to visit, at: next hop time, c: data}
+const retired = new Set(); // ids already faded out, so a later snapshot cannot bring them back
+let lastT = null;
+
+const money = v => v >= 1000 ? "$" + (v / 1000).toFixed(1) + "k" : v >= 10 ? "$" + v.toFixed(0) : "$" + v.toFixed(2);
+const left = s => s < 0 ? "late" : s < 90 ? s + "s" : s < 5400 ? Math.round(s / 60) + "m" :
+  s < 172800 ? Math.round(s / 3600) + "h" : Math.round(s / 86400) + "d";
+
+function fill(el, c) {
+  el.className = "card " + c.s;
+  el.innerHTML = `<span class="c"></span><span class="v">${money(c.usd)}</span><span class="k"></span>` +
+    `<span class="d">${c.s === "rejected" ? (c.why || "expired") : c.s === "delivered" ? "done" : left(c.dl)}</span>`;
+  el.querySelector(".c").textContent = c.c;
+  el.querySelector(".k").textContent = c.k;
+}
+
+// FLIP: measure every card, change the DOM, then slide each card from where it was to where it is now.
+function flip(change) {
+  const before = new Map();
+  for (const [id, x] of cards) before.set(id, x.el.getBoundingClientRect());
+  change();
+  for (const [id, x] of cards) {
+    const a = before.get(id);
+    if (!a) continue;
+    const b = x.el.getBoundingClientRect();
+    const dx = a.left - b.left, dy = a.top - b.top;
+    if (!dx && !dy) continue;
+    x.el.animate([{transform: `translate(${dx}px, ${dy}px)`}, {transform: "none"}],
+      {duration: dx ? 420 : 240, easing: "cubic-bezier(.2,.7,.2,1)"});
+  }
+}
+
+// Arrival to placement, and short jobs end to end, happen inside one sim tick (2 s), so a card walks every
+// column its job passed through since the last snapshot, one hop at a time, instead of jumping.
+function passes(c, s) {
+  if (s === "uplink" || s === "compute") return !c.p;
+  if (s === "relay") return !!(c.p || c.o);
+  if (s === "downlink") return !!(c.o && !c.p);
+  return ORDER[s] < ORDER.delivered;
+}
+function route(c, from) {
+  if (c.s === "rejected") return ["incoming", "quoted", "rejected"].filter(s => ORDER[s] > from);
+  return STAGES.slice(from + 1, ORDER[c.s]).map(([s]) => s).filter(s => passes(c, s)).concat(c.s);
+}
+
+function retire(x) {
+  if (x.dead) return;
+  x.el.classList.add("gone");
+  x.dead = performance.now() + 600;
+}
+
+// One clock moves every card: due hops and removals happen in one FLIP pass, and a newer snapshot simply
+// replaces a card's remaining path, so no stale timer can move a card backwards.
+function step() {
+  const now = performance.now();
+  const due = [...cards].filter(([, x]) => x.dead ? now >= x.dead : x.path.length && now >= x.at);
+  if (!due.length) return;
+  const born = [];
+  flip(() => {
+    for (const [id, x] of due) {
+      if (x.dead) { x.el.remove(); cards.delete(id); retired.add(id); continue; }
+      const s = x.path.shift();
+      fill(x.el, {...x.c, s});
+      if (x.s === null) { x.el.classList.add("new"); born.push(x.el); }
+      x.s = s; x.at = now + HOP_MS;
+      cols[s].list.prepend(x.el);
+      if (s === "delivered" || s === "rejected") setTimeout(() => retire(x), LINGER_MS);
+    }
+  });
+  requestAnimationFrame(() => born.forEach(el => el.classList.remove("new")));
+}
+setInterval(step, 60);
+
+function tick(n0, n1, el, fmt) {
+  const t0 = performance.now();
+  const step = now => {
+    const f = Math.min(1, (now - t0) / 700);
+    el.textContent = fmt(n0 + (n1 - n0) * f);
+    if (f < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+let rates = {jobs: 0, usd: 0};
+function apply(d) {
+  const now = performance.now(), first = lastT === null, seen = new Set();
+  // One sim tick is 2 s: spread its changes over it so the board never moves in one jump.
+  const later = () => first ? now : now + Math.random() * 1600;
+  for (const c of d.cards) {
+    if (retired.has(c.id)) continue;
+    seen.add(c.id);
+    const x = cards.get(c.id);
+    if (!x) {
+      // Cards first seen deep in the board (beyond the shown window until now) drop in where they are.
+      const walk = !first && (ORDER[c.s] <= ORDER.uplink || c.s === "rejected");
+      cards.set(c.id, {el: document.createElement("div"), s: null, path: walk ? route(c, -1) : [c.s], at: later(), c});
+      continue;
+    }
+    x.c = c;
+    const goal = x.path.length ? x.path[x.path.length - 1] : x.s;
+    if (goal !== c.s && !x.dead) { x.path = route(c, ORDER[x.s ?? goal]); x.at = later(); }
+    else if (!x.path.length && x.s === c.s && !x.dead) fill(x.el, c);
+  }
+  // Dropped out of the shown window: fade, never vanish; finished cards fade on their own after LINGER_MS.
+  for (const [id, x] of cards) {
+    if (seen.has(id) || x.s === "delivered" || x.s === "rejected") continue;
+    if (x.s === null) cards.delete(id); else retire(x);
+  }
+  for (const [s] of STAGES) {
+    const k = cols[s], n = d.counts[s] || 0;
+    if (n !== k.n) tick(k.n, n, k.count, v => Math.round(v).toLocaleString("en-US"));
+    k.n = n;
+    k.more.textContent = d.more[s] ? "+" + d.more[s].toLocaleString("en-US") : "";
+  }
+  tick(rates.jobs, d.per_min.jobs, document.getElementById("jobs"), v => v.toFixed(1));
+  tick(rates.usd, d.per_min.usd, document.getElementById("usd"), money);
+  rates = d.per_min;
+}
+
+async function poll() {
+  try {
+    const r = await fetch("api/board", {cache: "no-store"});
+    const d = await r.json();
+    if (d.t !== lastT) { apply(d); lastT = d.t; }
+  } catch (e) { /* the next poll retries */ }
+  setTimeout(poll, POLL_MS);
+}
+poll();
+</script>
+</body>
+</html>
