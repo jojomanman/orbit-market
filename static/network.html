@@ -8,7 +8,7 @@
 <style>
 :root {
   --bg: #07090c; --panel: #0c1015; --line: #1a2129; --edge: #27313b; --text: #c9d1d9; --dim: #6b7681;
-  --a: #7cc4ff; --b: #c4a7ff; --c: #8fd19e; --hot: #ffc66b; --u: 8px;
+  --a: #a796f0; --b: #e39ac4; --c: #5fc4c8; --req: #e8edf2; --raw: #ffb84d; --res: #4f94ff; --pay: #5fcf86; --u: 8px;
   font: 13px/1.5 ui-sans-serif, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
   font-variant-numeric: tabular-nums;
 }
@@ -27,33 +27,37 @@ a { color: var(--dim); text-decoration: none; } a:hover { color: var(--text); }
 .seg button { background: none; border: 0; color: var(--dim); font: inherit; padding: var(--u) 0; cursor: pointer; }
 .seg button + button { border-left: 1px solid var(--line); }
 .seg button.on { color: var(--text); background: var(--line); }
-#owners { display: flex; gap: calc(2 * var(--u)); color: var(--dim); font-size: 12px; height: 16px; }
-#owners i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
-#send { background: var(--hot); border: 0; color: #1a1200; font: inherit; font-weight: 600; height: 40px; cursor: pointer; }
+#presets { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--u); }
+#presets button { background: none; border: 1px solid var(--line); color: var(--dim); font: inherit; font-size: 12px; height: 32px; cursor: pointer; }
+#presets button.on { color: var(--text); border-color: var(--dim); }
+#send { background: var(--req); border: 0; color: var(--bg); font: inherit; font-weight: 600; height: 40px; cursor: pointer; }
 #send:disabled { background: var(--line); color: var(--dim); cursor: default; }
 #steps { list-style: none; display: grid; grid-auto-rows: min-content; gap: var(--u); overflow-y: auto; }
 #steps li { display: grid; grid-template-columns: 8px 1fr auto; column-gap: calc(1.5 * var(--u)); opacity: .3; transition: opacity .3s; }
 #steps li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--dim); margin-top: 6px; }
-#steps li.done { opacity: 1; } #steps li.now::before { background: var(--hot); }
+#steps li.done { opacity: 1; } #steps li.now::before { background: var(--text); }
 #steps time { text-align: right; color: var(--dim); }
 #steps small { grid-column: 2 / 4; color: var(--dim); font-size: 12px; }
 #result { display: grid; grid-template-columns: 1fr 1fr; gap: calc(2 * var(--u)); padding-top: calc(2 * var(--u)); border-top: 1px solid var(--line); }
 #result b { display: block; font-size: 32px; font-weight: 600; line-height: 1.2; color: var(--dim); transition: color .3s; }
 #result.done b { color: var(--text); }
-#cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--u); }
+#cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--u); }
 .card { border: 1px solid var(--line); padding: var(--u); display: grid; grid-template-columns: auto 1fr; column-gap: var(--u); font-size: 12px; color: var(--dim); white-space: nowrap; }
 .card.on { border-color: var(--dim); color: var(--text); }
 .card h2 { grid-column: 1 / 3; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
 .card dd { text-align: right; } .card p { grid-column: 1 / 3; font-size: 11px; color: var(--dim); }
-#clock { position: absolute; left: calc(3 * var(--u)); top: calc(3 * var(--u)); font-size: 24px; font-weight: 600; color: var(--hot); }
+#clock { position: absolute; left: calc(3 * var(--u)); top: calc(3 * var(--u)); font-size: 24px; font-weight: 600; }
 #clock small { display: block; font-size: 12px; font-weight: 400; color: var(--dim); }
+#clock #why { color: var(--text); }
 .node text { fill: var(--text); font-size: 13px; paint-order: stroke; stroke: var(--bg); stroke-width: 4px; }
 .node .ring { fill: var(--bg); stroke-width: 1.5; }
 .node.hit .ring { stroke-width: 3; }
 .edge { stroke: var(--edge); stroke-width: 1.25; fill: none; }
 .edge.gs { stroke-dasharray: 6 4; } .edge.isl { stroke-dasharray: 1 4; stroke-linecap: round; }
-.edge.hit { stroke: var(--hot); stroke-width: 2.5; stroke-dasharray: 8 6; animation: flow .6s linear infinite; }
-.edge.hit.rev { animation-direction: reverse; }
+.edge.req, .edge.raw, .edge.res, .edge.pay { stroke-width: 2; stroke-dasharray: none; opacity: .45; }
+.edge.req { stroke: var(--req); } .edge.raw { stroke: var(--raw); } .edge.res { stroke: var(--res); }
+.edge.hit { opacity: 1; stroke-width: 2.5; }
+.edge.pay { stroke: var(--pay); stroke-dasharray: 6 5; opacity: 1; animation: flow .6s linear infinite; }
 @keyframes flow { to { stroke-dashoffset: -14; } }
 .band { fill: var(--dim); font-size: 11px; letter-spacing: .1em; }
 .legend text { fill: var(--dim); font-size: 11px; }
@@ -63,34 +67,30 @@ a { color: var(--dim); text-decoration: none; } a:hover { color: var(--text); }
 <body>
 <main>
   <section id="graph">
-    <div id="clock">T+0:00<small>Ship detection, Port of Rotterdam, deliver within 15 min</small><small id="blocks"></small></div>
+    <div id="clock">T+0:00<small id="title"></small><small id="why"></small><small id="blocks"></small></div>
     <svg id="svg" viewBox="0 0 960 600">
       <defs>
         <symbol id="i-user" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="16" cy="11" r="5"/><path d="M6 27c1-6 5-9 10-9s9 3 10 9"/></g></symbol>
+        <symbol id="i-phone" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><rect x="10" y="5" width="12" height="22" rx="2"/><path d="M14 23h4"/></g></symbol>
         <symbol id="i-dc" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><rect x="7" y="5" width="18" height="6"/><rect x="7" y="13" width="18" height="6"/><rect x="7" y="21" width="18" height="6"/><path d="M10 8h4M10 16h4M10 24h4"/></g></symbol>
-        <symbol id="i-up" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 14a10 10 0 0 0 14 6z"/><path d="M13 17l-3 10h8l-2-6"/><path d="M22 12l4-4M22 8h4v4"/></g></symbol>
-        <symbol id="i-down" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 14a10 10 0 0 0 14 6z"/><path d="M13 17l-3 10h8l-2-6"/><path d="M26 8l-4 4M22 8v4h4"/></g></symbol>
+        <symbol id="i-gs" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 14a10 10 0 0 0 14 6z"/><path d="M13 17l-3 10h8l-2-6"/><path d="M22 6a6 6 0 0 1 4 4"/></g></symbol>
         <symbol id="i-sar" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><rect x="12" y="6" width="8" height="8"/><path d="M4 17h24v3H4z"/><path d="M11 25q5 3 10 0M8 28q8 4 16 0"/></g></symbol>
+        <symbol id="i-opt" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><rect x="11" y="6" width="10" height="12"/><path d="M3 10h8M21 10h8"/><circle cx="16" cy="24" r="4"/></g></symbol>
         <symbol id="i-cmp" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><rect x="11" y="11" width="10" height="10"/><path d="M13 8v3M16 8v3M19 8v3M13 21v3M16 21v3M19 21v3"/><path d="M2 13h6v6H2zM24 13h6v6h-6z"/></g></symbol>
         <symbol id="i-rel" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="1.5"><rect x="12" y="12" width="8" height="8"/><path d="M3 14h6v4H3zM23 14h6v4h-6z"/><path d="M11 10a6 6 0 0 1 10 0"/><path d="M16 4v4"/></g></symbol>
       </defs>
       <text class="band" x="0" y="76">GEO</text>
-      <text class="band" x="0" y="236">LEO</text>
-      <text class="band" x="0" y="396">GROUND</text>
-      <text class="band" x="0" y="516">FIBER</text>
+      <text class="band" x="0" y="228">LEO</text>
+      <text class="band" x="0" y="384">GROUND</text>
       <g id="edges"></g><g id="nodes"></g>
-      <circle id="dot" r="6" fill="var(--hot)" visibility="hidden"/>
-      <g class="legend" transform="translate(712 584)">
-        <line class="edge" x1="0" y1="0" x2="24" y2="0"/><text x="32" y="4">fiber</text>
-        <line class="edge gs" x1="72" y1="0" x2="96" y2="0"/><text x="104" y="4">radio</text>
-        <line class="edge isl" x1="152" y1="0" x2="176" y2="0"/><text x="184" y="4">laser</text>
-      </g>
+      <circle id="dot" r="6" visibility="hidden"/>
+      <g class="legend" id="legend" transform="translate(0 584)"></g>
     </svg>
   </section>
   <aside>
     <header><h1>Orbit Market · Network</h1><span><a href="./">Globe</a> · <a href="live">Live</a></span></header>
     <div class="seg" id="tabs"></div>
-    <div id="owners"></div>
+    <div id="presets"></div>
     <button id="send">Send request</button>
     <ol id="steps"></ol>
     <div id="result"><div><div class="label">Delivered</div><b id="r-time"></b></div><div><div class="label">Price</div><b id="r-price"></b></div></div>
@@ -99,77 +99,128 @@ a { color: var(--dim); text-decoration: none; } a:hover { color: var(--text); }
 </main>
 <script>
 "use strict";
-// The request travels as a loop with no crossing links: up the left (customer, entry DC, uplink), across the top
-// (GEO relay fans out to the LEO row, laser links only between neighbours), down the right (downlink, DC) and back
-// along the fiber row. Owners: A runs the relay, compute A1 and the European ground; B one SAR sat; C a second
-// constellation with its own downlink and DC.
+// One network, many requests. Nothing is routed through a fixed hub: each preset takes the cheapest feasible path at
+// that moment, so they use different links. Layout keeps every link short or bent around the LEO row, so no two
+// cross. Ring colour = owner. Moving colour = cargo: request white, raw data amber, result blue, payment green.
 const NODES = {
-  u1: ["user", "Port authority", 72, 500, "U"], dc1: ["dc", "DC Frankfurt", 216, 500, "A"],
-  up1: ["up", "Uplink Kiruna", 216, 380, "A"], rel1: ["rel", "Relay (GEO)", 528, 72, "A"],
-  sar1: ["sar", "SAR B2", 336, 224, "B"], cmp1: ["cmp", "Compute A1", 464, 224, "A"],
-  sar2: ["sar", "SAR C2", 592, 224, "C"], cmp2: ["cmp", "Compute C1", 720, 224, "C"],
-  dn1: ["down", "Downlink Svalbard", 864, 380, "C"], dc2: ["dc", "DC Stockholm", 864, 500, "C"],
+  u: ["user", "Customer", 96, 500, "U"], dc1: ["dc", "DC Frankfurt", 200, 500, "A"],
+  gsL: ["gs", "Station Kiruna", 200, 380, "A"], geo: ["rel", "Relay (GEO)", 456, 72, "A"],
+  cA1: ["cmp", "Compute A1", 288, 224, "A"], sarB1: ["sar", "SAR B1", 400, 224, "B"],
+  optB3: ["opt", "Optical B3", 512, 224, "B"], comA2: ["rel", "Comms A2", 624, 224, "A"],
+  wxC3: ["opt", "Weather C3", 736, 224, "C"], cC1: ["cmp", "Compute C1", 848, 224, "C"],
+  ph: ["phone", "Phones", 736, 380, "U"], gsR: ["gs", "Station Perth", 912, 380, "C"],
+  dc2: ["dc", "DC Oregon", 912, 500, "C"],
 };
-// [a, b, type, control point]; long links bend around the LEO row, short ones are straight.
+// [a, b, type, control point]
 const EDGES = [
-  ["u1", "dc1", "fiber"], ["dc1", "up1", "fiber"], ["dn1", "dc2", "fiber"], ["dc2", "dc1", "fiber"],
-  ["up1", "rel1", "gs", [216, 72]], ["rel1", "dn1", "gs", [864, 72]],
-  ...["sar1", "cmp1", "sar2", "cmp2"].map(s => ["rel1", s, "isl"]),
-  ["sar1", "cmp1", "isl"], ["cmp1", "sar2", "isl"], ["sar2", "cmp2", "isl"],
+  ["u", "dc1", "fiber"], ["dc1", "gsL", "fiber"], ["gsR", "dc2", "fiber"], ["dc2", "dc1", "fiber"],
+  ["gsL", "cA1", "gs", [200, 224]], ["gsL", "geo", "gs", [112, 72]], ["cC1", "gsR", "gs", [912, 224]], ["ph", "comA2", "gs"],
+  ["cA1", "sarB1", "isl"], ["sarB1", "optB3", "isl"], ["optB3", "comA2", "isl"], ["comA2", "wxC3", "isl"],
+  ["wxC3", "cC1", "isl"], ["geo", "comA2", "isl"],
 ];
 const OWNER_COLOR = { A: "var(--a)", B: "var(--b)", C: "var(--c)", U: "var(--dim)" };
+const CARGO = { req: ["request", "var(--req)"], raw: ["raw data", "var(--raw)"], res: ["result", "var(--res)"] };
 
-// One physical world for all three rules (docs/GOVERNANCE.md). Only who decides, how long deciding takes and
-// what is paid differ, so the comparison is fair.
-const PASS = { sar1: 45, sar2: 540 };     // next SAR access over the port, s from request
-const CAPTURE = 15, ISL_RAW = 4, DETECT = 40, FIBER = 0.05, HOP = 0.3;
-const COST = 264;                          // providers' summed reserve cost for the job, $ (MODEL-style legs)
+// Physical legs per request: kind = cargo, dt = seconds, pass = wait for the next sensor pass first.
+// Assumptions and sources: docs/GOVERNANCE.md.
+const PRESETS = {
+  ships: {
+    name: "Ships", customer: "Port authority", title: "Ship detection, Port of Rotterdam, within 15 min", cost: 264,
+    why: "Compute A1 is next to SAR B1 and Kiruna is in view: result straight down", passes: [45, 540],
+    legs: [
+      { k: "req", hops: ["u", "dc1", "gsL", "cA1", "sarB1"], dt: 1, text: "Tasking up at Kiruna, laser to SAR B1" },
+      { hops: ["sarB1"], dt: 15, pass: true, text: "SAR B1 images the port at night" },
+      { k: "raw", hops: ["sarB1", "cA1"], dt: 4, text: "2 GB raw by laser to Compute A1" },
+      { hops: ["cA1"], dt: 40, text: "Ships detected on board", sub: "2 MB result" },
+      { k: "res", hops: ["cA1", "gsL", "dc1", "u"], dt: 1, text: "Result down at Kiruna to the port" },
+    ],
+  },
+  fire: {
+    name: "Wildfire", customer: "Fire service", title: "Wildfire alert, Queensland, within 10 min", cost: 96,
+    why: "No station in view of Optical B3 for 14 min: 3 laser hops to Perth",
+    legs: [
+      { k: "req", hops: ["optB3"], dt: 0, text: "Fire watch order already on Optical B3", sub: "standing order, no uplink" },
+      { hops: ["optB3"], dt: 20, text: "Fire detected on board", sub: "40 kB alert, image stays up" },
+      { k: "res", hops: ["optB3", "comA2", "wxC3", "cC1", "gsR", "dc2", "dc1", "u"], dt: 2, text: "Alert over 3 laser hops, down at Perth" },
+    ],
+  },
+  weather: {
+    name: "Weather", customer: "Weather service", title: "Storm nowcast, Western Australia, every 10 min", cost: 180,
+    why: "40 GB raw stays in orbit; only the 200 MB product comes down",
+    legs: [
+      { k: "req", hops: ["u", "dc1", "dc2", "gsR", "cC1"], dt: 1, text: "Order by fiber to Perth, up to Compute C1" },
+      { k: "raw", hops: ["wxC3", "cC1"], dt: 20, text: "40 GB raw by laser from Weather C3" },
+      { hops: ["cC1"], dt: 90, text: "Nowcast model runs on Compute C1" },
+      { k: "res", hops: ["cC1", "gsR", "dc2", "dc1", "u"], dt: 4, text: "200 MB product down at Perth" },
+    ],
+  },
+  comms: {
+    name: "Disaster", customer: "Rescue centre", title: "Flood, Bangladesh: phone coverage now", cost: 140,
+    why: "GEO used: no station in view of Comms A2 for 9 min",
+    legs: [
+      { k: "req", hops: ["u", "dc1", "gsL", "geo", "comA2"], dt: 1, text: "Coverage order up via the GEO relay" },
+      { k: "raw", hops: ["ph", "comA2"], dt: 5, text: "Phones reach Comms A2 directly", sub: "direct to device, no tower" },
+      { k: "raw", hops: ["comA2", "geo", "gsL", "dc1", "u"], dt: 1, text: "SOS texts and locations back via GEO" },
+    ],
+  },
+  batch: {
+    name: "Batch", customer: "Research lab", title: "400 GB SAR archive, analysed within 8 h", cost: 410,
+    why: "Oregon is night side: GPU $0.90/h vs $4 in orbit, and 8 h leaves time to downlink",
+    legs: [
+      { k: "req", hops: ["u", "dc1", "gsL", "cA1", "sarB1"], dt: 1, text: "Order up at Kiruna to SAR B1" },
+      { k: "raw", hops: ["sarB1", "cA1", "gsL"], dt: 9000, text: "400 GB down at Kiruna over 3 passes" },
+      { k: "raw", hops: ["gsL", "dc1", "dc2"], dt: 600, text: "Fiber to DC Oregon" },
+      { hops: ["dc2"], dt: 7200, text: "Batch runs on night-side GPUs" },
+      { k: "res", hops: ["dc2", "dc1", "u"], dt: 30, text: "Results back by fiber" },
+    ],
+  },
+};
 const BLOCK = 12;                          // Ethereum slot time, s
 
+// One physical world for all three rules. Only who decides, how long deciding takes and what is paid differ.
 const VARIANTS = {
   central: {
-    name: "Centralized", price: COST * 1.4, trust: "operator", join: "owner only", chain: false,
-    decide: [["u1", "dc1", 1, "Operator schedules SAR B2", "operator decides"]],
-    settle: () => "Port pays operator $" + Math.round(COST * 1.4),
+    name: "Centralized", margin: c => c * 1.4, trust: "operator", join: "owner only", chain: false,
+    decide: [[1, "Operator picks the route", "operator decides"]],
+    settle: "Customer pays the operator",
   },
   contract: {
-    name: "Contract", price: COST * 1.18 * 1.02, trust: "contract", join: "signatories", chain: false,
-    decide: [["u1", "dc1", 0.5, "Port sends RFQ to A", "Port decides"],
-             ["dc1", "dc1", 2.5, "A, B, C quote from own passes", "each owner decides"],
-             ["dc1", "dc1", 0.5, "SAR B2 wins, paid 2nd price", "contract decides · Port pays escrow"]],
-    settle: () => "Escrow pays B, A, C per leg, 2 % fee",
+    name: "Contract", margin: c => c * 1.18 * 1.02, trust: "contract", join: "signatories", chain: false,
+    decide: [[0.5, "Customer sends RFQ", "customer decides"],
+             [2.5, "Owners quote their legs", "each owner decides"],
+             [0.5, "Cheapest feasible route wins", "contract decides · escrow"]],
+    settle: "Escrow pays each owner per leg, 2 % fee",
   },
   crypto: {
-    name: "Decentralized", price: COST * 1.15 + 2, trust: "code + stake", join: "anyone staking", chain: true,
-    decide: [["u1", "dc1", BLOCK, "Order posted on-chain", "Port decides · escrow + gas"],
-             ["dc1", "dc1", 2 * BLOCK, "Providers bid for 2 blocks", "each provider decides · stake locked"],
-             ["dc1", "dc1", BLOCK, "B2 pass missed, SAR C2 wins", "smart contract decides"]],
-    settle: () => "Proof in next block, escrow pays in tokens",
+    name: "Decentralized", margin: c => c * 1.15 + 2, trust: "code + stake", join: "anyone staking", chain: true,
+    decide: [[BLOCK, "Order posted on-chain", "customer decides · escrow + gas"],
+             [2 * BLOCK, "Providers bid for 2 blocks", "each provider decides · stake locked"],
+             [BLOCK, "Cheapest feasible route wins", "smart contract decides"]],
+    settle: "Proof in next block, escrow pays in tokens",
   },
 };
 
-// Physical legs after the decision: one optimal path given which pass the decision still catches.
-function run(key) {
-  const v = VARIANTS[key], steps = [];
+function run(vk, pk) {
+  const v = VARIANTS[vk], p = PRESETS[pk], steps = [];
   let t = 0;
-  for (const [a, b, dt, text, sub] of v.decide) { t += dt; steps.push({ hops: [a, b], t, text, sub }); }
-  const sar = t <= PASS.sar1 ? "sar1" : "sar2", cmp = sar === "sar1" ? "cmp1" : "cmp2", paid = key !== "central";
-  t += 3 * HOP;
-  steps.push({ hops: ["dc1", "up1", "rel1", sar], t, text: "Tasking up via Kiruna and relay", sub: paid ? "A paid transit" : "" });
-  t = PASS[sar] + CAPTURE;
-  steps.push({ hops: [sar], t, text: NODES[sar][1] + " images the port", sub: "next pass at " + fmt(PASS[sar]) });
-  t += ISL_RAW;
-  steps.push({ hops: [sar, cmp], t, text: "2 GB raw by laser to " + NODES[cmp][1], sub: "" });
-  t += DETECT;
-  steps.push({ hops: [cmp], t, text: "Ships detected on board", sub: "2 MB result" });
-  t += 2 * HOP + 2 * FIBER;
-  steps.push({ hops: [cmp, "rel1", "dn1", "dc2", "dc1", "u1"], t, text: "Result down to the port", sub: "" });
+  for (const [dt, text, sub] of v.decide) { t += dt; steps.push({ hops: [], t, text, sub }); }
+  for (const leg of p.legs) {
+    let sub = leg.sub || "";
+    if (leg.pass) {
+      const next = p.passes.find(s => s >= t);
+      sub = (next > p.passes[0] ? "missed the " + fmt(p.passes[0]) + " pass, next " : "pass at ") + fmt(next);
+      t = next;
+    }
+    t += leg.dt;
+    steps.push({ ...leg, sub, t });
+  }
   const delivered = t;
-  steps.push({ hops: [], t: v.chain ? t + BLOCK : t, text: v.settle(), sub: "" });
+  steps.push({ hops: [], pay: true, t: v.chain ? t + BLOCK : t, text: v.settle, sub: "" });
   return { steps, delivered };
 }
 
-const fmt = s => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+const fmt = s => s >= 3600 ? Math.floor(s / 3600) + "h" + String(Math.floor(s % 3600 / 60)).padStart(2, "0")
+  : Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
 const money = x => "$" + Math.round(x);
 const $ = id => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
@@ -187,37 +238,67 @@ for (const id in NODES) {
   el("circle", { class: "ring", r: 24 }, g);
   el("use", { href: "#i-" + icon, x: -16, y: -16, width: 32, height: 32 }, g);
   // Labels sit where no link runs: relay above, stations on the inner side, the rest below.
-  const side = { rel1: [0, -36, "middle"], up1: [36, 5, "start"], dn1: [-36, 5, "end"] }[id] || [0, 44, "middle"];
+  const side = { geo: [0, -36, "middle"], gsL: [36, 5, "start"], gsR: [-36, 5, "end"] }[id] || [0, 44, "middle"];
   el("text", { x: side[0], y: side[1], "text-anchor": side[2] }, g).textContent = label;
   nodeEls[id] = g;
 }
 
-let variant = "central", runId = 0;
+// Legend: one line, left = what colours mean, right = link types.
+function legend() {
+  const g = $("legend"); g.replaceChildren();
+  let x = 0;
+  const word = (s, col) => { const t = el("text", { x, y: 4 }, g); t.textContent = s; if (col) t.style.fill = col; x += t.getComputedTextLength() + 16; };
+  const ring = col => { el("circle", { cx: x + 5, cy: 0, r: 5, fill: "none", stroke: col, "stroke-width": 1.5 }, g); x += 16; };
+  const bar = (cls, col) => { const l = el("line", { class: "edge " + cls, x1: x, y1: 0, x2: x + 20, y2: 0 }, g); if (col) l.style.stroke = col; x += 28; };
+  word("Ring = owner");
+  if (variant === "central") { ring(OWNER_COLOR.A); word("one operator"); }
+  else for (const o of ["A", "B", "C"]) { ring(OWNER_COLOR[o]); word(o); }
+  x += 8; word("Moving =");
+  for (const k in CARGO) { bar("", CARGO[k][1]); word(CARGO[k][0]); }
+  bar("pay"); word("payment");
+  x = 776;
+  for (const [cls, s] of [["", "fiber"], ["gs", "radio"], ["isl", "laser"]]) { bar(cls); word(s); x -= 8; }
+}
+
+let variant = "central", preset = "ships", runId = 0;
 function paint() {
   for (const id in NODES) {
     const o = NODES[id][4], col = o === "U" ? OWNER_COLOR.U : variant === "central" ? OWNER_COLOR.A : OWNER_COLOR[o];
     nodeEls[id].querySelector(".ring").setAttribute("stroke", col);
     nodeEls[id].querySelector("use").style.color = col;
   }
-  $("owners").innerHTML = variant === "central" ? '<span><i style="background: var(--a)"></i>one operator owns all</span>'
-    : ["A", "B", "C"].map(o => `<span><i style="background: ${OWNER_COLOR[o]}"></i>owner ${o}</span>`).join("");
+  nodeEls.u.querySelector("text").textContent = PRESETS[preset].customer;
   for (const b of $("tabs").children) b.classList.toggle("on", b.dataset.k === variant);
+  for (const b of $("presets").children) b.classList.toggle("on", b.dataset.k === preset);
   for (const c of $("cards").children) c.classList.toggle("on", c.dataset.k === variant);
+  legend();
+}
+function cards() {
+  $("cards").replaceChildren(...Object.entries(VARIANTS).map(([k, v]) => {
+    const c = h("div", "card");
+    c.dataset.k = k; c.onclick = () => select(k);
+    c.append(h("h2", "", v.name));
+    for (const [dt, dd] of [["Delivered", fmt(run(k, preset).delivered)], ["Price", money(v.margin(PRESETS[preset].cost))]]) c.append(h("dt", "", dt), h("dd", "", dd));
+    c.append(h("p", "", v.trust), h("p", "", v.join));
+    return c;
+  }));
 }
 function reset() {
   runId++;
-  for (const e of Object.values(edgeEls)) e.classList.remove("hit", "rev");
+  for (const e of Object.values(edgeEls)) e.classList.remove("hit", "req", "raw", "res", "pay");
   for (const n of Object.values(nodeEls)) n.classList.remove("hit");
   $("dot").setAttribute("visibility", "hidden");
-  const r = run(variant);
+  const r = run(variant, preset), p = PRESETS[preset];
   $("steps").replaceChildren(...r.steps.map(s => {
     const li = h("li");
     li.append(h("span", "", s.text), h("time", "", fmt(s.t)));
     if (s.sub) li.append(h("small", "", s.sub));
     return li;
   }));
+  $("title").textContent = p.title;
+  $("why").textContent = "Why this path: " + p.why;
   $("r-time").textContent = fmt(r.delivered);
-  $("r-price").textContent = money(VARIANTS[variant].price);
+  $("r-price").textContent = money(VARIANTS[variant].margin(p.cost));
   $("result").classList.remove("done");
   $("send").disabled = false;
   setClock(0);
@@ -226,13 +307,15 @@ function setClock(t) {
   $("clock").firstChild.textContent = "T+" + fmt(t);
   $("blocks").textContent = VARIANTS[variant].chain ? "Chain block " + Math.floor(t / BLOCK) + ", 12 s each" : "";
 }
-function select(k) { variant = k; reset(); paint(); }
+function select(k) { variant = k; cards(); reset(); paint(); }
+function pick(k) { preset = k; cards(); reset(); paint(); send(); }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-async function travel(a, b, id) {
-  const fwd = edgeEls[a + "-" + b], p = fwd || edgeEls[b + "-" + a], L = p.getTotalLength(), dot = $("dot");
-  p.classList.add("hit"); if (!fwd) p.classList.add("rev");
-  dot.setAttribute("visibility", "visible");
+const edgeOf = (a, b) => edgeEls[a + "-" + b] ? [edgeEls[a + "-" + b], true] : [edgeEls[b + "-" + a], false];
+async function travel(a, b, kind, id) {
+  const [p, fwd] = edgeOf(a, b), L = p.getTotalLength(), dot = $("dot");
+  p.classList.remove("req", "raw", "res"); p.classList.add(kind, "hit");
+  dot.setAttribute("fill", CARGO[kind][1]); dot.setAttribute("visibility", "visible");
   const t0 = performance.now(), dur = 120 + L * 0.5;
   for (let f = 0; f < 1 && id === runId; f = (performance.now() - t0) / dur) {
     const pt = p.getPointAtLength(fwd ? f * L : (1 - f) * L);
@@ -243,37 +326,33 @@ async function travel(a, b, id) {
 }
 async function send() {
   reset();
-  const id = runId, items = $("steps").children;
+  const id = runId, items = $("steps").children, used = new Set();
   $("send").disabled = true;
-  for (const [i, s] of run(variant).steps.entries()) {
+  for (const [i, s] of run(variant, preset).steps.entries()) {
     items[i].classList.add("now");
-    for (let j = 0; j + 1 < s.hops.length; j++) if (s.hops[j] !== s.hops[j + 1]) await travel(s.hops[j], s.hops[j + 1], id);
+    for (let j = 0; j + 1 < s.hops.length; j++) { await travel(s.hops[j], s.hops[j + 1], s.k, id); used.add(edgeOf(s.hops[j], s.hops[j + 1])[0]); }
     if (id !== runId) return;
     for (const n of s.hops) nodeEls[n].classList.add("hit");
+    if (s.pay) for (const e of used) e.classList.add("pay");
     setClock(s.t);
     items[i].classList.add("done");
-    await sleep(450);
+    await sleep(s.pay ? 1600 : 450);
     if (id !== runId) return;
     items[i].classList.remove("now");
+    for (const e of used) e.classList.remove("hit", "pay");
   }
   $("result").classList.add("done");
   $("send").disabled = false;
 }
 $("send").onclick = send;
 
-for (const k in VARIANTS) {
-  const v = VARIANTS[k], r = run(k), b = h("button", "", v.name), c = h("div", "card");
-  b.dataset.k = c.dataset.k = k;
-  b.onclick = c.onclick = () => select(k);
-  c.append(h("h2", "", v.name));
-  for (const [dt, dd] of [["Delivered", fmt(r.delivered)], ["Price", money(v.price)]]) c.append(h("dt", "", dt), h("dd", "", dd));
-  c.append(h("p", "", v.trust), h("p", "", v.join));
-  $("tabs").append(b); $("cards").append(c);
-}
-// #contract opens a tab, #contract/play also sends the request (pitch links, screenshots).
-const [tab, play] = location.hash.slice(1).split("/");
+for (const k in VARIANTS) { const b = h("button", "", VARIANTS[k].name); b.dataset.k = k; b.onclick = () => select(k); $("tabs").append(b); }
+for (const k in PRESETS) { const b = h("button", "", PRESETS[k].name); b.dataset.k = k; b.onclick = () => pick(k); $("presets").append(b); }
+// #contract opens a tab, #contract/fire a preset, #contract/fire/play also sends it (pitch links, screenshots).
+const [tab, pre, play] = location.hash.slice(1).split("/");
+if (PRESETS[pre]) preset = pre;
 select(VARIANTS[tab] ? tab : "central");
-if (play === "play") send();
+if (play === "play" || pre === "play") send();
 </script>
 </body>
 </html>
