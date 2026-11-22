@@ -1,0 +1,48 @@
+:root {
+  --bg: #07090c;
+  --panel: #0c1015;
+  --line: #1a2129;
+  --text: #c9d1d9;
+  --dim: #6b7681;
+  --accent: #7cc4ff;
+  --hot: #ffb35c;
+  --u: 8px;
+  font: 13px/1.4 ui-sans-serif, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); }
+main { display: grid; grid-template-columns: 1fr 400px; height: 100vh; }
+#globe { position: relative; overflow: hidden; }
+#globe canvas { display: block; }
+aside {
+  background: var(--panel); border-left: 1px solid var(--line);
+  padding: calc(3 * var(--u)); display: grid; grid-auto-rows: min-content; gap: calc(3 * var(--u));
+  overflow-y: auto;
+}
+header { display: flex; justify-content: space-between; align-items: baseline; }
+h1 { font-size: 15px; font-weight: 600; letter-spacing: .02em; }
+#clock, .label, footer { color: var(--dim); }
+.label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: var(--u); }
+.big { font-size: 22px; font-weight: 600; color: var(--hot); margin-bottom: var(--u); }
+.bars { display: grid; grid-template-columns: 72px 1fr 40px; gap: 4px var(--u); align-items: center; }
+.bar { height: 4px; background: var(--line); position: relative; }
+.bar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); }
+.bar i.hot { background: var(--hot); }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 3px 0; text-align: right; font-weight: 400; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--dim); font-size: 11px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+td { color: var(--text); }
+td.n { color: var(--dim); }
+#history { display: grid; grid-template-columns: 72px 1fr 48px; gap: 4px var(--u); align-items: center; }
+#history canvas { width: 100%; height: 20px; }
+.num { text-align: right; }
+footer { display: flex; gap: calc(2 * var(--u)); font-size: 11px; }
+footer span { flex: 1; }
+footer a { color: var(--dim); text-decoration: none; }
+footer a:hover { color: var(--text); }
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; grid-template-rows: 55vh auto; height: auto; }
+  aside { border-left: 0; border-top: 1px solid var(--line); }
+}

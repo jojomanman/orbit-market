@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>if (!location.pathname.endsWith("/")) location.replace(location.pathname + "/" + location.search);</script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbit Market</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">{"imports": {"three": "./vendor/three.module.min.js"}}</script>
+</head>
+<body>
+<main>
+  <section id="globe"></section>
+  <aside>
+    <header>
+      <h1>Orbit Market</h1>
+      <span id="clock"></span>
+    </header>
+
+    <div class="block">
+      <div class="label">Binding</div>
+      <div id="binding" class="big"></div>
+      <div id="pressure" class="bars"></div>
+    </div>
+
+    <div class="block">
+      <div class="label">Price by region</div>
+      <table id="prices"></table>
+    </div>
+
+    <div class="block">
+      <div class="label">Price, 24 h, vs anchor</div>
+      <div id="history"></div>
+    </div>
+
+    <div class="block">
+      <div class="label">Last hour</div>
+      <table id="compare"></table>
+    </div>
+
+    <footer>
+      <span id="counts"></span>
+      <a href="api/prices">API</a>
+      <a href="https://github.com/jojomanman/orbit-market">Source</a>
+    </footer>
+  </aside>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>

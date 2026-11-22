@@ -1,0 +1,17 @@
+[Unit]
+Description=Orbit Market: satellite compute market simulation + API (public via Funnel :10000/orbit)
+After=network-online.target
+
+[Service]
+User=agent
+Group=agent
+WorkingDirectory=/opt/agent/projects/orbit-market
+ExecStart=/usr/bin/python3 server.py --port 8510 --warmup-hours 0.3
+Restart=always
+RestartSec=5
+CPUQuota=100%
+MemoryMax=1200M
+Nice=5
+
+[Install]
+WantedBy=multi-user.target
