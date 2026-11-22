@@ -7,7 +7,6 @@ const RE = 6378.137, MU = 398600.4418;
 const RES = ["compute", "memory", "storage", "isl", "downlink"];
 const RES_LABEL = { compute: "CPU", memory: "Mem", storage: "Store", isl: "ISL", downlink: "Down" };
 const RES_UNIT = { compute: "$/unit-h", memory: "$/GB-h", storage: "$/TB-h", isl: "$/GB per hop", downlink: "$/GB" };
-const KIND_COLOR = { bulk: 0x7cc4ff, eo: 0x9be7c4, batch: 0x7cc4ff, relay: 0xffb35c, edge: 0xd6a8ff, api: 0xffffff };
 
 const $ = (id) => document.getElementById(id);
 const host = $("globe");
@@ -31,25 +30,23 @@ const earth = new THREE.Group();
 scene.add(earth);
 
 const sunUniform = { value: sunDir };
+const tex = (f) => { const t = new THREE.TextureLoader().load(f); t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t; };
+// NASA Blue Marble (day) and Black Marble (night) via three.js examples; terminator from the sim's sun vector.
 earth.add(new THREE.Mesh(
-  new THREE.SphereGeometry(0.995, 96, 64),
+  new THREE.SphereGeometry(1, 128, 96),
   new THREE.ShaderMaterial({
-    uniforms: { sun: sunUniform },
-    vertexShader: `varying vec3 vN; void main(){ vN = normalize((modelMatrix*vec4(position,0.)).xyz);
-      gl_Position = projectionMatrix*viewMatrix*modelMatrix*vec4(position,1.); }`,
-    fragmentShader: `uniform vec3 sun; varying vec3 vN; void main(){
-      float d = smoothstep(-0.15, 0.25, dot(vN, sun));
-      gl_FragColor = vec4(mix(vec3(0.025,0.032,0.045), vec3(0.06,0.085,0.12), d), 1.); }`,
-  })));
-
-scene.add(new THREE.Mesh(
-  new THREE.SphereGeometry(1.06, 64, 48),
-  new THREE.ShaderMaterial({
-    side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-    vertexShader: `varying vec3 vN; varying vec3 vV; void main(){ vN = normalize(normalMatrix*normal);
-      vec4 mv = modelViewMatrix*vec4(position,1.); vV = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }`,
-    fragmentShader: `varying vec3 vN; varying vec3 vV; void main(){
-      float f = pow(1. - abs(dot(vN, vV)), 3.); gl_FragColor = vec4(0.30,0.55,0.85, f*0.35); }`,
+    uniforms: { sun: sunUniform, day: { value: tex("tex/day.jpg") }, night: { value: tex("tex/night.jpg") } },
+    vertexShader: `varying vec3 vN; varying vec2 vUv; void main(){ vUv = uv;
+      vN = normalize((modelMatrix*vec4(position,0.)).xyz); gl_Position = projectionMatrix*viewMatrix*modelMatrix*vec4(position,1.); }`,
+    fragmentShader: `uniform vec3 sun; uniform sampler2D day; uniform sampler2D night; varying vec3 vN; varying vec2 vUv;
+      void main(){
+        float l = dot(normalize(vN), sun);
+        float d = smoothstep(-0.08, 0.12, l);
+        vec3 dc = texture2D(day, vUv).rgb;
+        dc = mix(vec3(dot(dc, vec3(0.3,0.59,0.11))), dc, 0.8) * (0.25 + 0.6*max(l, 0.));
+        vec3 nc = texture2D(night, vUv).rgb * vec3(1.0,0.85,0.6) * 0.9 + vec3(0.006,0.009,0.014);
+        gl_FragColor = vec4(mix(nc, dc, d), 1.); }`,
   })));
 
 function llToLocal(lat, lon, r) {
@@ -57,32 +54,16 @@ function llToLocal(lat, lon, r) {
   return [r * Math.cos(la) * Math.cos(lo), r * Math.sin(la), -r * Math.cos(la) * Math.sin(lo)];
 }
 
-fetch("land.json").then((r) => r.json()).then((pts) => {
-  const pos = new Float32Array(pts.length * 3);
-  pts.forEach(([la, lo], i) => pos.set(llToLocal(la, lo, 1.0), i * 3));
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  earth.add(new THREE.Points(g, new THREE.ShaderMaterial({
-    uniforms: { sun: sunUniform, px: { value: renderer.getPixelRatio() } },
-    transparent: true,
-    vertexShader: `uniform float px; varying float vD; void main(){
-      vec3 n = normalize((modelMatrix*vec4(position,0.)).xyz); vD = n.x; vec4 mv = modelViewMatrix*vec4(position,1.);
-      gl_PointSize = px * 2.2 * (3.5 / -mv.z); gl_Position = projectionMatrix*mv; }`,
-    fragmentShader: `uniform vec3 sun; varying float vD; void main(){
-      vec2 c = gl_PointCoord-0.5; if(dot(c,c)>0.25) discard; gl_FragColor = vec4(0.36,0.47,0.58,0.75); }`,
-  })));
-});
-
 // ---- constellation ----------------------------------------------------------------------------------------------
 let con = null, N = 0, a = null, inc = null, raan0 = null, u0 = null, nMot = null, raanDot = null;
 let satGeom = null, satPos = null, satFlag = null, gsLocal = [];
 const routeGeom = new THREE.BufferGeometry();
-const MAX_SEG = 6000;
+const MAX_SEG = 12000;
 const routePos = new Float32Array(MAX_SEG * 6), routeCol = new Float32Array(MAX_SEG * 6);
 routeGeom.setAttribute("position", new THREE.BufferAttribute(routePos, 3));
 routeGeom.setAttribute("color", new THREE.BufferAttribute(routeCol, 3));
 scene.add(new THREE.LineSegments(routeGeom, new THREE.LineBasicMaterial({
-  vertexColors: true, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })));
+  vertexColors: true, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false })));
 
 async function loadConstellation() {
   con = await (await fetch("api/constellation")).json();
@@ -136,13 +117,20 @@ function propagate(t) {
 }
 
 // ---- state ------------------------------------------------------------------------------------------------------
-let state = null, stateAt = 0, routes = [];
+let state = null, routes = [];
+// Smooth clock: advance at the server's measured sim rate every frame and steer gently toward the server, so a slow
+// or late tick never makes the satellites jump.
+let simT = null, rate = 60, lastSrv = null;
 const history = [];
 
 async function poll() {
   try {
     const s = await (await fetch("api/state", { cache: "no-store" })).json();
-    state = s; stateAt = performance.now();
+    const now = performance.now();
+    if (lastSrv && s.t > lastSrv.t) rate = 0.8 * rate + 0.2 * (s.t - lastSrv.t) / ((now - lastSrv.at) / 1000);
+    if (!lastSrv || s.t !== lastSrv.t) lastSrv = { t: s.t, at: now };
+    if (simT === null) simT = s.t;
+    state = s;
     const raw = atob(s.sats);
     for (let i = 0; i < raw.length && i < N; i++) {
       const b = raw.charCodeAt(i);
@@ -156,8 +144,15 @@ async function poll() {
   } catch (e) { /* next poll retries */ }
 }
 
+let lastFrame = performance.now();
 function simTime() {
-  return state ? state.t + (performance.now() - stateAt) / 1000 * state.speed : Date.now() / 1000;
+  const now = performance.now(), dt = Math.min(0.1, (now - lastFrame) / 1000);
+  lastFrame = now;
+  if (simT === null) return Date.now() / 1000;
+  simT += dt * rate;
+  const target = lastSrv.t + (now - lastSrv.at) / 1000 * rate;
+  simT += (target - simT) * Math.min(1, dt * 0.5);
+  return simT;
 }
 
 const tmp = new THREE.Vector3();
@@ -167,23 +162,44 @@ function nodePos(id, out) {
   return out.set(g[0], g[1], g[2]).applyMatrix4(earth.matrixWorld);
 }
 
-function drawRoutes() {
+const fade = new Map();   // route id -> alpha, so routes fade in and out instead of popping
+const ARC = 6;           // sub-segments per hop
+const pa = new THREE.Vector3(), pb = new THREE.Vector3(), pc = new THREE.Vector3(), pd = new THREE.Vector3();
+function drawRoutes(dt) {
+  const live = new Set(routes.map((r) => r.id));
+  for (const r of routes) if (!fade.has(r.id)) fade.set(r.id, 0);
   let k = 0;
   const c = new THREE.Color();
-  const prev = new THREE.Vector3();
-  for (const r of routes) {
-    c.setHex(KIND_COLOR[r.kind] || 0x7cc4ff);
-    const w = Math.min(1, 0.35 + r.gbps / 5);
-    for (let j = 0; j + 1 < r.path.length && k < MAX_SEG; j++, k++) {
-      nodePos(r.path[j], prev); nodePos(r.path[j + 1], tmp);
-      routePos.set([prev.x, prev.y, prev.z, tmp.x, tmp.y, tmp.z], k * 6);
-      routeCol.set([c.r * w, c.g * w, c.b * w, c.r * w, c.g * w, c.b * w], k * 6);
+  for (const r of routes.concat([...fade.keys()].filter((id) => !live.has(id)).map((id) => ({ id, ghost: true })))) {
+    let f = fade.get(r.id) + (r.ghost ? -dt : dt) * 1.5;
+    if (f <= 0 && r.ghost) { fade.delete(r.id); continue; }
+    f = Math.min(1, Math.max(0, f)); fade.set(r.id, f);
+    if (r.ghost) { r.path = (ghostPaths.get(r.id) || {}).path; r.load = (ghostPaths.get(r.id) || {}).load; }
+    else ghostPaths.set(r.id, r);
+    if (!r.path) continue;
+    c.setHex(0x5f8fb8).lerp(new THREE.Color(0xffb35c), Math.min(1, r.load || 0));
+    const w = 0.55 * f;
+    for (let j = 0; j + 1 < r.path.length && k < MAX_SEG; j++) {
+      nodePos(r.path[j], pa); nodePos(r.path[j + 1], pb);
+      const ground = r.path[j + 1] >= N;
+      const steps = ground ? 1 : ARC;
+      const ra = pa.length(), rb = pb.length();
+      for (let q = 0; q < steps && k < MAX_SEG; q++, k++) {
+        for (const [t, out] of [[q / steps, pc], [(q + 1) / steps, pd]]) {
+          if (ground) out.copy(pa).lerp(pb, t);
+          else out.copy(pa).normalize().lerp(pb.clone().normalize(), t).normalize().multiplyScalar(ra + (rb - ra) * t);
+        }
+        routePos.set([pc.x, pc.y, pc.z, pd.x, pd.y, pd.z], k * 6);
+        routeCol.set([c.r * w, c.g * w, c.b * w, c.r * w, c.g * w, c.b * w], k * 6);
+      }
     }
   }
+  for (const id of ghostPaths.keys()) if (!fade.has(id)) ghostPaths.delete(id);
   routeGeom.setDrawRange(0, k * 2);
   routeGeom.attributes.position.needsUpdate = true;
   routeGeom.attributes.color.needsUpdate = true;
 }
+const ghostPaths = new Map();
 
 // ---- panel ------------------------------------------------------------------------------------------------------
 const fmt = (v) => v == null ? "" : v >= 10 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v >= 0.1 ? v.toFixed(3) : v.toFixed(4);
@@ -271,7 +287,7 @@ function frame() {
     }
     earth.updateMatrixWorld();
     propagate(t);
-    drawRoutes();
+    drawRoutes(1 / 60);
   }
   controls.update();
   renderer.render(scene, camera);

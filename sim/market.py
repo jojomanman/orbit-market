@@ -178,18 +178,23 @@ class MarketClearing:
     def order(self, jobs):
         return sorted(jobs, key=lambda j: -j["value"] / max(j["ref_cost"], 1e-9))
 
-    def compute_price(self, region, reserve):
-        return np.maximum(self.p["compute"][region], reserve)
+    def sat_prices(self, region, reserve):
+        """Per-satellite compute, memory and storage price this tick: the regional price, never below the owner's offer."""
+        return np.maximum(self.p["compute"][region], reserve), self.p["memory"][region], self.p["storage"][region]
 
     def pick(self, cost, cand, geo, job):
         return int(np.argmin(cost))
 
     def update(self, pressure):
+        """Tatonnement on excess demand, with a floor that rises with load: an idle region sells at 30 % of the
+        anchor, a full one cannot drop below it, and unmet demand pushes the price up from there without limit
+        short of 100x."""
         for r in RES:
             z = pressure[r]
             ok = np.isfinite(z)
             step = np.exp(ETA * np.clip(z[ok] - TARGET_UTIL, -1, 2))
-            self.p[r][ok] = np.clip(self.p[r][ok] * step, 0.1 * REF[r], 100 * REF[r])
+            floor = REF[r] * (0.3 + 0.7 * np.minimum(z[ok], 1))
+            self.p[r][ok] = np.clip(self.p[r][ok] * step, floor, 100 * REF[r])
 
 
 class FixedFCFS(MarketClearing):
@@ -201,8 +206,8 @@ class FixedFCFS(MarketClearing):
     def order(self, jobs):
         return sorted(jobs, key=lambda j: j["arrival"])
 
-    def compute_price(self, region, reserve):
-        return self.p["compute"][region]
+    def sat_prices(self, region, reserve):
+        return self.p["compute"][region], self.p["memory"][region], self.p["storage"][region]
 
     def pick(self, cost, cand, geo, job):
         if job.get("location") is None:
@@ -287,6 +292,9 @@ class Engine:
         free_m = self.fleet.mem - self.mem_used
         free_s = self.fleet.storage - self.sto_used
         reserve = self.reserve * (1 + ph.UNIT_W * self.fleet.energy_shadow_price(geo.sunlit) / 0.45)
+        p_cpu, p_mem, p_sto = self.clear.sat_prices(geo.region, reserve)
+        p_dl = float(np.median(self.clear.p["downlink"]))
+        everywhere = np.arange(self.con.n_sats)
         for job in self.clear.order(self.pending):
             if now + job["duration"] > job["deadline"]:
                 self._finish(job, now, ok=False)
@@ -296,7 +304,7 @@ class Engine:
                     keep.append(job)
                 continue
             loc = job.get("location")
-            cand = geo.within_km(*loc, FOOTPRINT_KM) if loc is not None else np.arange(self.con.n_sats)
+            cand = geo.within_km(*loc, FOOTPRINT_KM) if loc is not None else everywhere
             if len(cand) == 0:
                 keep.append(job)
                 continue
@@ -309,11 +317,8 @@ class Engine:
                 keep.append(job)
                 continue
             h = job["duration"] / 3600
-            reg = geo.region[fit]
-            cost = (job["units"] * h * self.clear.compute_price(reg, reserve[fit])
-                    + job["mem"] * h * self.clear.p["memory"][reg]
-                    + job["storage_gb"] / 1000 * max(h, 0.5) * self.clear.p["storage"][reg]
-                    + job["out_gb"] * float(np.median(self.clear.p["downlink"])))
+            cost = (job["units"] * h * p_cpu[fit] + job["mem"] * h * p_mem[fit]
+                    + job["storage_gb"] / 1000 * max(h, 0.5) * p_sto[fit] + job["out_gb"] * p_dl)
             i = self.clear.pick(cost, fit, geo, job)
             s, price = int(fit[i]), float(cost[i])
             if price > job["value"]:

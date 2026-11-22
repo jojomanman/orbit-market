@@ -76,7 +76,7 @@ class Sim:
             "global_pressure": gp, "binding": max(gp, key=gp.get), "limits": m.binding,
             "metrics": {"market": m.metrics(), "baseline": b.metrics()},
             "sats": base64.b64encode(flags.tobytes()).decode(),
-            "routes": [{"path": f["path"], "gbps": round(f["rate"], 2), "kind": f["job"]["kind"]}
+            "routes": [{"id": f["job"]["id"], "path": f["path"], "load": round(f.get("load", 0), 2)}
                        for f in flows if f.get("path") and f.get("rate", 0) > 0],
             "history": self.history[-1],
         }
