@@ -400,6 +400,13 @@ def parse_job(req, now):
         # Emergency-services subscription: served ahead of the spot queue, never charged above its cap.
         job["priority"] = True
         job["price_cap"] = _num(req, "price_cap_usd", 0, 1e7)
+    start = _num(req, "start_in_s", 0, 7 * 86400, 0)
+    if start:
+        # Advance reservation of a future slot; the deadline counts from the slot start.
+        if job["kind"] == "relay":
+            raise ValueError("start_in_s is not supported for point-to-point transfers")
+        job["start_after"] = now + start
+        job["deadline"] += start
     job["ref_cost"] = ref_cost(job)
     return job
 
@@ -411,6 +418,8 @@ def job_view(job):
         out["placed"] = job["placed"]
     if "quote_usd" in job:
         out["quote_usd"] = job["quote_usd"]
+    if "booked" in job:
+        out["booked"] = job["booked"]
     if "settle" in job:
         out["settlement"] = settlement.job_view(job["settle"])
     if "result" in job:

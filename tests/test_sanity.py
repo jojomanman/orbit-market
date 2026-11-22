@@ -90,6 +90,24 @@ class Sanity(unittest.TestCase):
         led.release({}, "compute")            # jobs never priced (no escrow) are ignored
 
 
+    def test_booking_holds_capacity(self):
+        e, now = self.engines["rfq"], self.geo.t
+        req = {"cpu": 16, "memory_gb": 8, "duration_s": 600, "deadline_s": 3600, "max_price_usd": 1e6,
+               "location": {"lat": 59.3, "lon": 18.1}, "start_in_s": 1800}
+        job = parse_job(req, now)
+        self.assertEqual(job["deadline"], now + 1800 + 3600)
+        e._book(job)
+        s = job["booked"]["sat"]
+        self.assertEqual(e._held(now + 1800, now + 2400)[0][s], 16)
+        self.assertEqual(e._held(now, now + 600)[0][s], 0)      # free for spot jobs until the slot
+        e.bookings.remove(job)
+        cheap = parse_job({**req, "max_price_usd": 1e-6}, now)
+        e._book(cheap)
+        self.assertNotIn("booked", cheap)                       # below the forward price: stays a spot job
+        for bad in (-5, "soon", 8 * 86400):
+            with self.assertRaises(ValueError):
+                parse_job({**req, "start_in_s": bad}, now)
+
     def test_modes_registered(self):
         self.assertEqual(set(MODES), {"rfq", "posted", "batch", "tatonnement", "fixed"})
 

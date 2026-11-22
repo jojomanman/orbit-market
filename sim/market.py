@@ -14,7 +14,7 @@ from collections import deque
 import numpy as np
 
 from . import physics as ph
-from .orbit import C_KM_S, REGIONS, RE
+from .orbit import C_KM_S, REGIONS, RE, Geometry
 from .routing import ROUTERS, Network
 from .settlement import Ledger
 
@@ -31,6 +31,7 @@ FOOTPRINT_KM = 940.0        # ground radius seen above 25 deg elevation from ~55
 IMAGER_KM = 320.0           # imaging swath reach: 30 deg off-nadir from ~560 km
 L_MULT = 0.3                # price floor as a multiple of the anchor (owners' cost floor)
 RETRY_S = 180               # a waiting job re-bids every 3 simulated minutes
+BOOK_PREMIUM = 0.1          # a firm future slot costs today's price on that satellite + 10 % (assumed)
 WEATHER_SHELLS = (2, 3)     # S3 (70 deg) and S4 (sun-synchronous) carry weather instruments
 WEATHER_RAW_MBPS = 200.0    # raw imager + hyperspectral sounder stream per satellite
 WEATHER_AI_RATIO = 25.0     # onboard PC compression + product extraction (IASI PC-score heritage)
@@ -387,6 +388,7 @@ class Engine:
         self.reserve_base = self.owner_markup * 0.45
         self.cust_done, self.cust_paid = [], []   # this tick, for per-customer stats
         self.ledger = Ledger(con.owner)
+        self.bookings = []        # advance reservations not yet started: their capacity is held from spot jobs
 
     def _zero_unmet(self):
         n, e, g = self.con.n_sats, len(self.con.isl_u), len(self.con.gs_lat)
@@ -428,6 +430,9 @@ class Engine:
         self.net = Network(self.con, geo, self.fleet, self.prev_load, ROUTERS[self.mode.router], self.pr)
         for j in arrivals:
             self.mode.observe(j)
+            if j.get("start_after", 0) > now and j.get("sat") is None:
+                self._book(j)
+        self.bookings = [b for b in self.bookings if "placed" not in b and "result" not in b]
         self.pending.extend(arrivals)
         self.cust_done, self.cust_paid = [], []
         self.ledger.decay(dt)
@@ -511,6 +516,43 @@ class Engine:
             return None
         return geo.within_km(*loc, IMAGER_KM if job["kind"] == "image" else FOOTPRINT_KM)
 
+    def _cost(self, job, sats, ground):
+        h = job["duration"] / 3600
+        pr = self.pr
+        return (job["units"] * h * pr.cpu[sats] + job["mem"] * h * pr.mem[sats]
+                + job["storage_gb"] / 1000 * max(h, 0.5) * pr.sto[sats] + job["out_gb"] * ground)
+
+    def _held(self, t0, t1):
+        """Units and memory per satellite that bookings hold somewhere in [t0, t1)."""
+        hu, hm = np.zeros(self.con.n_sats), np.zeros(self.con.n_sats)
+        for b in self.bookings:
+            if b["start_after"] < t1 and b["start_after"] + b["duration"] > t0:
+                hu[b["sat"]] += b["units"]
+                hm[b["sat"]] += b["mem"]
+        return hu, hm
+
+    def _book(self, job):
+        """Advance reservation: orbits are predictable, so pick the cheapest satellite that will be in reach at the
+        slot and has the capacity free of other bookings; the price is fixed now, the job is served first at the
+        slot. Without a fit the job stays an ordinary spot job that starts bidding at the slot."""
+        if self.pr is None:
+            return
+        t0 = job["start_after"]
+        cand = self._candidates(Geometry(self.con, t0), job)
+        cand = np.arange(self.con.n_sats) if cand is None else cand
+        hu, hm = self._held(t0, t0 + job["duration"])
+        fit = cand[(self.fleet.units[cand] - hu[cand] >= job["units"]) & (self.fleet.mem[cand] - hm[cand] >= job["mem"])]
+        if not len(fit):
+            return
+        ground = self.net.ground_cost[np.isfinite(self.net.ground_cost)]
+        cost = self._cost(job, fit, float(np.median(ground)) if len(ground) else REF["downlink"]) * (1 + BOOK_PREMIUM)
+        i = int(np.argmin(cost))
+        if cost[i] > job["value"]:
+            return
+        job.update(sat=int(fit[i]), priority=True, price_cap=float(cost[i]))
+        job["booked"] = {"sat": int(fit[i]), "usd": round(float(cost[i]), 4), "start": t0}
+        self.bookings.append(job)
+
     def _clear_pending(self, geo, now, dt, reserve):
         keep, winners = [], []
         pr, mode = self.pr, self.mode
@@ -534,10 +576,14 @@ class Engine:
                     keep.append(job)
                 continue
             cand = self._candidates(geo, job)
+            fu, fm = free_u, free_m
+            if self.bookings and "booked" not in job:
+                hu, hm = self._held(now, now + max(job["duration"], dt))
+                fu, fm = free_u - hu, free_m - hm
             if cand is None:
-                fit = np.nonzero((free_u >= job["units"]) & (free_m >= job["mem"]) & (free_s >= job["storage_gb"]))[0]
+                fit = np.nonzero((fu >= job["units"]) & (fm >= job["mem"]) & (free_s >= job["storage_gb"]))[0]
             else:
-                fit = cand[(free_u[cand] >= job["units"]) & (free_m[cand] >= job["mem"]) &
+                fit = cand[(fu[cand] >= job["units"]) & (fm[cand] >= job["mem"]) &
                            (free_s[cand] >= job["storage_gb"])] if len(cand) else cand
             if job["out_gb"] > 0 and len(fit):
                 fit = fit[np.isfinite(ground[fit])]
@@ -552,9 +598,7 @@ class Engine:
                 job["why"] = "capacity"
                 keep.append(job)
                 continue
-            h = job["duration"] / 3600
-            cost = (job["units"] * h * pr.cpu[fit] + job["mem"] * h * pr.mem[fit]
-                    + job["storage_gb"] / 1000 * max(h, 0.5) * pr.sto[fit] + job["out_gb"] * ground[fit])
+            cost = self._cost(job, fit, ground[fit])
             if mode.name != "fixed":
                 i = int(np.argmin(cost))
             elif job.get("location"):

@@ -88,4 +88,4 @@ Assumed: fee, 2:1 ratio, 1.2x markup. Not yet: routing preference own > peer > t
 
 ## Known gaps
 
-No advance reservation of future slots (jobs start now or re-bid every 3 min). Imaging sensor time is not a priced good. Inter-shell links absent. Ground-station antennas are pooled per station, not scheduled per pass.
+Advance reservation only via the API (`start_in_s`); customer jobs still start now or re-bid every 3 min. Imaging sensor time is not a priced good. Inter-shell links absent. Ground-station antennas are pooled per station, not scheduled per pass.
