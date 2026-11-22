@@ -44,7 +44,7 @@ earth.add(new THREE.Mesh(
         float l = dot(normalize(vN), sun);
         float d = smoothstep(-0.08, 0.12, l);
         vec3 dc = texture2D(day, vUv).rgb;
-        dc *= 1. - 0.65*smoothstep(0.65, 0.9, dot(dc, vec3(0.3,0.59,0.11)));   // tame polar ice glare at the terminator
+        dc *= 1. - 0.8*smoothstep(0.72, 0.88, dot(dc, vec3(0.3,0.59,0.11)));   // tame polar ice glare at the terminator
         dc = mix(vec3(dot(dc, vec3(0.3,0.59,0.11))), dc, 0.9) * (0.25 + 1.15*max(l, 0.));
         vec3 nc = texture2D(night, vUv).rgb * vec3(1.0,0.85,0.6) * 0.9 + vec3(0.006,0.009,0.014);
         gl_FragColor = vec4(mix(nc, dc, d), 1.); }`,
@@ -198,8 +198,6 @@ function arcPoint(t, lift, out) {
 }
 function drawRoutes(dt) {
   if (highlight && highlight.path) routes = routes.filter((r) => r.id !== "hl").concat([{ id: "hl", path: highlight.path, load: 1 }]);
-  if (focus) routes = routes.filter((r) => !r.focus).concat(focus.jobs.filter((j) => j.sat != null)
-    .map((j) => ({ id: "f" + j.id, path: j.path || [j.sat], loc: j.loc, focus: true })));
   const live = new Set(routes.map((r) => r.id));
   for (const r of routes) if (!fade.has(r.id)) fade.set(r.id, 0);
   let k = 0;
@@ -213,18 +211,16 @@ function drawRoutes(dt) {
     let f = fade.get(r.id) + (r.ghost ? -dt : dt) * 1.5;
     if (f <= 0 && r.ghost) { fade.delete(r.id); continue; }
     f = Math.min(1, Math.max(0, f)); fade.set(r.id, f);
-    if (r.ghost) Object.assign(r, ghostPaths.get(r.id) || {}, { ghost: true });
+    if (r.ghost) { r.path = (ghostPaths.get(r.id) || {}).path; r.load = (ghostPaths.get(r.id) || {}).load; }
     else ghostPaths.set(r.id, r);
     if (!r.path) continue;
-    if (r.focus) c.setHex(0x9fe0ff);
-    else c.setHex(0x5f8fb8).lerp(new THREE.Color(0xffb35c), Math.min(1, r.load || 0));
-    const w = (r.id === "hl" || r.focus ? 0.9 : 0.35) * f;
+    c.setHex(0x5f8fb8).lerp(new THREE.Color(0xffb35c), Math.min(1, r.load || 0));
+    const w = (r.id === "hl" ? 0.9 : 0.35) * f;
     // The relay hops zigzag through the mesh grid; draw the satellite part as one great-circle arc from the first to
     // the last satellite and the ground legs as straight up/down links.
     const sats = r.path.filter((id) => id < N);
     if (!sats.length) continue;
     if (r.path[0] >= N) line(nodePos(r.path[0], pc), nodePos(sats[0], pd), w);
-    else if (r.loc) line(pc.set(...llToLocal(r.loc[0], r.loc[1], 1)).applyMatrix4(earth.matrixWorld), nodePos(sats[0], pd), w);
     if (sats.length > 1) {
       nodePos(sats[0], pa); nodePos(sats[sats.length - 1], pb);
       ua.copy(pa).normalize(); ub.copy(pb).normalize();
@@ -454,36 +450,6 @@ function track(j) {
 }
 let highlight = null;
 
-// ---- customers: today's spend and outcomes; a click shows that customer's jobs on the globe ---------------------
-let focus = null;
-const focusGeom = new THREE.BufferGeometry();
-focusGeom.setAttribute("position", new THREE.BufferAttribute(new Float32Array(40 * 3), 3));
-earth.add(new THREE.Points(focusGeom, new THREE.PointsMaterial({ color: 0x9fe0ff, size: 0.02 })));
-
-async function loadCustomers() {
-  const cs = (await (await fetch("api/customers")).json()).customers.sort((a, b) => b.spend_today - a.spend_today);
-  $("custs").innerHTML = `<tr><th>Customer</th><th>Spend</th><th>Served</th><th>Missed</th></tr>` + cs.map((c) =>
-    `<tr data-id="${c.id}" class="${focus && focus.id === c.id ? "on" : ""}"><td>${c.name}</td><td>${usd(c.spend_today)}</td>
-     <td>${c.served}</td><td class="${c.missed ? "" : "n"}">${c.missed}</td></tr>`).join("");
-  if (focus) await loadFocus();
-}
-$("custs").onclick = (e) => {
-  const tr = e.target.closest("tr[data-id]");
-  if (!tr) return;
-  focus = focus && focus.id === tr.dataset.id ? null : { id: tr.dataset.id, jobs: [] };
-  loadCustomers();
-  if (!focus) focusGeom.setDrawRange(0, 0);
-};
-async function loadFocus() {
-  const id = focus.id, jobs = (await (await fetch(`api/customers/${id}/jobs?mode=${mode}`)).json()).jobs;
-  if (!focus || focus.id !== id) return;
-  focus.jobs = jobs;
-  const at = jobs.filter((j) => j.loc).slice(0, 40), pos = focusGeom.attributes.position;
-  at.forEach((j, i) => pos.array.set(llToLocal(j.loc[0], j.loc[1], 1.003), i * 3));
-  pos.needsUpdate = true;
-  focusGeom.setDrawRange(0, at.length);
-}
-
 const sparks = {};
 function drawHistory(s) {
   const box = $("history");
@@ -545,8 +511,6 @@ function frame() {
   const h = await (await fetch("api/prices?mode=" + mode)).json();
   history.push(...h.history);
   await loadPresets();
-  loadCustomers();
-  setInterval(loadCustomers, 4000);
   setTarget(target.lat, target.lon);
   await poll();
   setInterval(poll, 1000);
