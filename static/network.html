@@ -39,7 +39,7 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 th, td { padding: 3px 4px 3px 0; text-align: left; font-weight: 400; vertical-align: top; }
 th { color: var(--dim); font-size: 11px; border-bottom: 1px solid var(--line); }
 tr.on td { color: var(--text); } td { color: var(--dim); }
-@media (max-width: 900px) { main { grid-template-columns: 1fr; height: auto; } #graph { height: 70vh; } aside { overflow: visible; } }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; height: auto; } svg { height: auto; } #clock { position: static; } aside { overflow: visible; } }
 #clock { position: absolute; left: calc(3 * var(--u)); top: calc(3 * var(--u)); font-size: 22px; font-weight: 600; color: var(--b); }
 #clock small { display: block; font-size: 11px; font-weight: 400; color: var(--dim); }
 .node text { fill: var(--dim); font-size: 11px; text-anchor: middle; paint-order: stroke; stroke: var(--bg); stroke-width: 4px; }
