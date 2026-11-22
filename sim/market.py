@@ -19,14 +19,21 @@ from .routing import ROUTERS, Network
 from .settlement import Ledger
 
 RES = ["compute", "memory", "storage", "isl", "downlink"]
-# Anchor prices. compute: an L-class satellite (~$1.5M built and launched, 64 units, 5 years) amortises to ~$0.5 per
-# unit-hour; memory and storage at a space premium over terrestrial clouds; downlink near AWS Ground Station minutes.
-REF = {"compute": 0.60,     # $/unit-h
-       "memory": 0.006,     # $/GB-h
-       "storage": 0.30,     # $/TB-h
-       "isl": 0.002,        # $/GB per hop
-       "downlink": 0.50,    # $/GB, station + terminal
-       "contact": 3.0}      # $/station contact minute, AWS Ground Station narrowband on-demand
+# Anchor prices, sourced in docs/MODEL.md "Anchor prices". compute: an L-class satellite (~500 kg with its 4.5 kW array,
+# battery and radiators, launched at ~$2,500/kg, plus ~$2.5M hardware and bus) amortised over 5 years at ~50 % sold
+# costs ~$2.7 per unit-hour, ~10x a terrestrial GPU-backed vCPU (~$0.25/h); the anchor is 30x terrestrial so the owners'
+# floor (L_MULT) sits at that cost. Memory and storage carry the same 30x; downlink and contact minutes follow AWS
+# Ground Station; mesh transit sits at cloud inter-region egress.
+REF = {"compute": 7.5,      # $/unit-h
+       "memory": 0.15,      # $/GB-h
+       "storage": 3.0,      # $/TB-h
+       "isl": 0.05,         # $/GB per hop
+       "downlink": 2.0,     # $/GB, station + terminal
+       "contact": 10.0}     # $/station contact minute, AWS Ground Station wideband reserved
+# Imaging sensor time, $/km2 by delivery window: Umbra SAR via SkyWatch lists ~$39-190/km2, priority at the top;
+# archive-speed optical tasking ~$10-25/km2. Orders have a 25 km2 minimum. Log-interpolated between the two windows.
+TASKING = ((900.0, 190.0), (86400.0, 25.0))   # (delivery window s, $/km2)
+TASKING_MIN_KM2 = 25.0
 OWNER_MARKUP = {"A": 1.0, "B": 0.9, "C": 1.1, "D": 1.0}
 FOOTPRINT_KM = 940.0        # ground radius seen above 25 deg elevation from ~550 km
 IMAGER_KM = 320.0           # imaging swath reach: 30 deg off-nadir from ~560 km
@@ -37,7 +44,7 @@ WEATHER_SHELLS = (2, 3)     # S3 (70 deg) and S4 (sun-synchronous) carry weather
 WEATHER_RAW_MBPS = 200.0    # raw imager + hyperspectral sounder stream per satellite
 WEATHER_AI_RATIO = 25.0     # onboard PC compression + product extraction (IASI PC-score heritage)
 WEATHER_AI_UNITS = 4        # compute units the onboard model holds while it runs
-WEATHER_VALUE_PER_GB = 1.5  # what a met agency pays per GB delivered within 30 min (3x the downlink anchor)
+WEATHER_VALUE_PER_GB = 3 * REF["downlink"]  # what a met agency pays per GB delivered within 30 min
 EVENT_RADIUS_DEG = 2.5
 
 HUBS = [(40.7, -74.0, 5), (34.0, -118.2, 3), (41.9, -87.6, 2), (37.4, -122.1, 3), (43.7, -79.4, 1.5),
@@ -201,7 +208,15 @@ def ref_cost(job):
     return (job["units"] * hours * REF["compute"] + job["mem"] * hours * REF["memory"]
             + job["storage_gb"] / 1000 * max(hours, 0.5) * REF["storage"]
             + job["out_gb"] * (REF["downlink"] if job["kind"] != "relay" else 10 * REF["isl"])
-            + (uplink_rates(input_gb(job), REF["downlink"] / 2)[2] if job["kind"] != "relay" and job.get("location") else 0))
+            + (uplink_rates(input_gb(job), REF["downlink"] / 2)[2] if job["kind"] != "relay" and job.get("location") else 0)
+            + job.get("sensor_usd", 0))
+
+
+def tasking_usd(km2, window_s):
+    """Sensor time for one image order: area (at least the 25 km2 minimum) x the $/km2 for its delivery window."""
+    (w0, p0), (w1, p1) = TASKING
+    f = min(max(math.log(max(window_s, 1) / w0) / math.log(w1 / w0), 0), 1)
+    return max(km2, TASKING_MIN_KM2) * p0 * (p1 / p0) ** f
 
 
 def input_gb(job):
@@ -536,7 +551,8 @@ class Engine:
         h = job["duration"] / 3600
         pr = self.pr
         return (job["units"] * h * pr.cpu[sats] + job["mem"] * h * pr.mem[sats]
-                + job["storage_gb"] / 1000 * max(h, 0.5) * pr.sto[sats] + job["out_gb"] * ground + self._uplink(job))
+                + job["storage_gb"] / 1000 * max(h, 0.5) * pr.sto[sats] + job["out_gb"] * ground + self._uplink(job)
+                + job.get("sensor_usd", 0))
 
     def _uplink(self, job):
         """The input's way up from the station nearest the customer, the same for every candidate satellite; the

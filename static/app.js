@@ -591,16 +591,18 @@ function renderStep() {
     `<tr class="${i === 0 ? "win" : ""}"><td>${i === 0 ? "Winner, " : ""}sat ${q.sat}</td><td>${q.owner}</td><td>${money(q.usd)}</td></tr>`)));
   else if (s.chain) {
     const sum = (f) => steps.filter(f).reduce((q, x) => q + (x.items || []).reduce((a, it) => a + it.usd, 0), 0);
-    const ent = st ? st.entry : "";
-    const rows = [["Uplink", "station", sum((x) => x.name === "Uplink")], ["Compute", ent, sum((x) => x.name === "Compute")],
-      ["Mesh relay", st ? [...new Set([ent, ...Object.keys(st.forwarders).filter((k) => k !== "GS")])].join(", ") : "", sum((x) => x.name.startsWith("Relay"))],
-      ["Downlink and station", "station", sum((x) => x.name === "Downlink")], ["Market fee", "market", st ? st.fee_usd : 0]];
-    cost = table([`<tr><th>Part</th><th>Paid to</th><th>USD</th></tr>`].concat(rows.map(([a, b, c]) => `<tr><td>${a}</td><td>${b}</td><td>${money(c)}</td></tr>`),
-      [`<tr class="tot"><td>Total</td><td></td><td>${money(tx.price_usd)}</td></tr>`]));
-  } else if (s.items && s.items.length) cost = table([`<tr><th>Item</th><th>Amount</th><th>Rate</th><th>USD</th></tr>`].concat(s.items.map((it) =>
-    `<tr><td>${it.what}</td><td>${fmt(it.qty)} ${it.unit}</td><td>${it.rate ? money(it.rate) : "in price"}</td><td>${money(it.usd)}</td></tr>`)));
+    const ent = st ? `owner ${st.entry}` : "", L = tx.plan.legs, gs = (l) => l && l.kind === "gs" ? l.name : "station";
+    const fwd = st ? [...new Set([st.entry, ...Object.keys(st.forwarders).filter((k) => k !== "GS")])] : [];
+    const rows = [[tx.plan.compute.some((it) => it.what === "imaging") ? "Imaging + compute" : "Compute", ent, sum((x) => x.name === "Compute")],
+      ["Uplink", gs(L[0]), sum((x) => x.name === "Uplink")],
+      ["Relay", fwd.length ? `owner${fwd.length > 1 ? "s" : ""} ${fwd.join(", ")}` : "", sum((x) => x.name.startsWith("Relay"))],
+      ["Downlink", gs(L[L.length - 1]), sum((x) => x.name === "Downlink")], ["Market fee", "market", st ? st.fee_usd : 0]];
+    cost = table(rows.map(([a, b, c]) => `<tr><td>${a}</td><td>${b}</td><td>${money(c)}</td></tr>`)
+      .concat([`<tr class="tot"><td>= Total</td><td>customer paid</td><td>${money(tx.price_usd)}</td></tr>`]));
+  } else if (s.items && s.items.length) cost = table(s.items.map((it) => `<tr><td>${it.what}</td><td class="calc">${fmt(it.qty)} ${it.unit}` +
+    (it.rate ? ` × ${money(it.rate)}/${it.unit}` : "") + `</td><td>${it.rate ? "= " + money(it.usd) : "in price"}</td></tr>`));
   $("wcost").innerHTML = cost;
-  $("wtotal").innerHTML = s.chain ? "" : `<span>Running total</span><b>${money(spent(si))}</b>`;
+  $("wtotal").innerHTML = `<span>${s.chain ? "Total paid" : "Running total"}</span><b>${money(s.chain ? tx.price_usd : spent(si))}</b>`;
   $("wdots").innerHTML = steps.map((_, i) => `<i class="${i < si ? "done" : i === si ? "on" : ""}"></i>`).join("");
   $("back").disabled = si === 0;
   $("next").textContent = si === steps.length - 1 ? "New job" : "Next";

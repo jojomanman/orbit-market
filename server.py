@@ -23,7 +23,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import numpy as np
 
 from sim.market import (DEFAULT_MODE, IMAGER_KM, MODES, REF, RES, input_gb, uplink_rates, WEATHER_AI_RATIO, WEATHER_AI_UNITS, WEATHER_RAW_MBPS, Demand,
-                        Engine, ref_cost, sun_elevation_sin)
+                        TASKING_MIN_KM2, Engine, ref_cost, sun_elevation_sin, tasking_usd)
 from sim import board, physics as ph, settlement
 from sim.customers import Customers
 from sim.routing import ROUTERS, Network
@@ -253,12 +253,16 @@ class Sim:
             paid = settlement.job_view(j["settle"])["legs"]
             up = legs[1]["items"] if len(legs) > 1 and legs[0]["kind"] == "gs" else []
             down = [x for l in legs[at + 1:] for x in l["items"]]
-            for part, got in ((up, paid.get("uplink", {"usd": 0})["usd"]), (compute, paid["compute"]["usd"]),
+            for part, got in ((up, paid.get("uplink", {"usd": 0})["usd"]),
+                              (compute, paid["compute"]["usd"] - j.get("sensor_usd", 0)),
                               (down, paid["delivery"]["usd"])):
                 k = got / max(sum(x["usd"] for x in part), 1e-9)
                 for x in part:
                     if x["usd"]:
                         x["rate"], x["usd"] = round(x["rate"] * k, 5), round(x["usd"] * k, 4)
+        # Sensor time is a list price fixed at the order, so it is never rescaled; it sits first in the compute step.
+        if j.get("sensor_usd"):
+            compute.insert(0, item("imaging", j["km2"], "km2", j["sensor_usd"] / j["km2"]))
         return {"t": self.t, "legs": legs, "compute_at": at, "compute": compute,
                 "downlink_s": round(j["out_gb"] * 8 / ph.DOWNLINK_GBPS, 1)}
 
@@ -332,7 +336,7 @@ class Sim:
                 if self.con.shell[sat] == 3 and sun_elev_sin(tp, lat, lon) < 0.17:
                     continue
                 cpu, dl = self.forecast(region, tp)
-                price = IMAGE_UNITS * IMAGE_PROC_S / 3600 * cpu + IMAGE_OUT_GB * dl + IMAGE_RAW_GB / 1000 * 0.5 \
+                price = tasking_usd(TASKING_MIN_KM2, w) + IMAGE_UNITS * IMAGE_PROC_S / 3600 * cpu + IMAGE_OUT_GB * dl + IMAGE_RAW_GB / 1000 * 0.5 \
                     * float(np.median(e.pr.sto))
                 if best is None or price < best["price_usd"]:
                     best = {"price_usd": round(price, 2), "pass_t": tp, "sat": sat,
@@ -414,7 +418,7 @@ class Sim:
         job = dict(kind="image", units=IMAGE_UNITS, mem=4 * IMAGE_UNITS, storage_gb=IMAGE_RAW_GB,
                    duration=IMAGE_PROC_S, out_gb=IMAGE_OUT_GB, location=p, sat=opt["sat"],
                    start_after=opt["pass_t"], arrival=self.t, deadline=self.t + deadline, value=value,
-                   quote_usd=opt["price_usd"])
+                   quote_usd=opt["price_usd"], sensor_usd=tasking_usd(TASKING_MIN_KM2, deadline), km2=TASKING_MIN_KM2)
         job["ref_cost"] = ref_cost(job)
         return job
 

@@ -15,12 +15,15 @@ import re
 
 import numpy as np
 
-from .market import EVENT_RADIUS_DEG, diurnal, pareto
+from .market import EVENT_RADIUS_DEG, diurnal, pareto, TASKING_MIN_KM2, tasking_usd
 from .orbit import REGIONS, region_of
 
 MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
 KIND = {"image_area": "eo", "process_onboard": "eo", "monitor_track": "eo", "relay_data": "bulk",
         "downlink_bulk": "bulk", "store": "bulk", "train_model": "batch"}
+# value_per_job_usd was researched against the first anchor prices (compute $0.60/unit-h); the 2026-11-22
+# recalibration raised the anchors ~8x on a typical job, so values scale by the same factor and clear as before.
+VALUE_SCALE = 8.0
 MAX_STREAM_PER_DAY = 3000      # merge above this many jobs a day into bigger jobs
 FLAT_DAY = ("train_model", "store", "downlink_bulk")
 
@@ -111,7 +114,7 @@ class Customers:
                     "out_gb": max(_num(pj, "downlink_gb", 0, 1e6), _num(pj, "isl_gb", 0, 1e6)
                                   if j["type"] == "relay_data" else 0) * merge,
                     "deadline_s": _num(j, "deadline_s", 1, 30 * 86400), "rate": per_day / merge / 86400,
-                    "value": _num(j, "value_per_job_usd", 0, 1e9) * merge,
+                    "value": _num(j, "value_per_job_usd", 0, 1e9) * merge * VALUE_SCALE,
                     "elasticity": _num(j, "price_elasticity", 0, 5) if "price_elasticity" in j else 0.5})
             except (ValueError, KeyError, TypeError) as e:
                 self.problems.append(f"{org['id']}/{j.get('type', '?') if isinstance(j, dict) else '?'}: {e}")
@@ -168,12 +171,17 @@ class Customers:
         if units == 64:
             duration = core_h * 3600 / 64
         hours = max(duration / 3600, 1 / 60)
+        # An image order also buys sensor time; the researched value covers processing and delivery, so the customer
+        # adds the list price it would pay a tasking provider for the same image anyway.
+        km2 = max(25.0 * size, TASKING_MIN_KM2) if jt["type"] == "image_area" else 0.0
+        sensor = tasking_usd(km2, dl) if km2 else 0.0
         return {"kind": jt["kind"], "units": units, "mem": min(256, jt["mem_gb_h"] * size / hours) if units else 0,
                 "storage_gb": min(8000, jt["storage_gb"] * size + jt["out_gb"] * size),
                 "duration": duration, "out_gb": jt["out_gb"] * size,
                 "location": None if jt["kind"] == "batch" else (lat, lon),
                 "deadline": now + max(dl, duration * 1.2), "arrival": now + self.rng.random() * dt,
-                "value": jt["value"] * size, "customer": org["id"], "ctype": jt["type"]}
+                "value": jt["value"] * size + sensor, "sensor_usd": sensor, "km2": km2,
+                "customer": org["id"], "ctype": jt["type"]}
 
     def record(self, done_rows, paid_rows):
         """Fold one tick of the posted engine's results into per-customer stats and today's spend."""

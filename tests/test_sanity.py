@@ -16,7 +16,7 @@ sys.path.insert(0, ROOT)
 
 from server import parse_job                                       # noqa: E402
 from sim.customers import Customers                                # noqa: E402
-from sim.market import MODES, Demand, Engine, ref_cost             # noqa: E402
+from sim.market import MODES, Demand, Engine, ref_cost, tasking_usd  # noqa: E402
 from sim.orbit import RE, Constellation, Geometry                  # noqa: E402
 from sim.settlement import Ledger                                  # noqa: E402
 
@@ -111,6 +111,18 @@ class Sanity(unittest.TestCase):
         for bad in (-5, "soon", 8 * 86400):
             with self.assertRaises(ValueError):
                 parse_job({**req, "start_in_s": bad}, now)
+
+    def test_anchor_prices_land_in_reference_ranges(self):
+        """docs/MODEL.md "Anchor prices": the typical jobs Jonas named cost what the real market charges."""
+        image = lambda window: ref_cost(dict(kind="image", units=16, mem=64, storage_gb=20, duration=30, out_gb=0.5,
+                                             location=(59.3, 18.1), sensor_usd=tasking_usd(25, window)))
+        self.assertTrue(3000 <= image(900) <= 10000, image(900))          # urgent 25 km2 SAR: several thousand
+        self.assertTrue(300 <= image(86400) <= image(900) / 3, image(86400))
+        weather_h = ref_cost(dict(kind="eo", units=40, mem=64, storage_gb=30, duration=3600, out_gb=3, location=(60, 10)))
+        self.assertTrue(100 <= weather_h <= 5000, weather_h)               # onboard-processing hour: hundreds+
+        relay = ref_cost(dict(kind="bulk", units=1, mem=2, storage_gb=5, duration=3600, out_gb=5, location=(50, 0)))
+        self.assertTrue(10 <= relay <= 100, relay)                         # small relay: tens
+        self.assertEqual(tasking_usd(5, 900), tasking_usd(25, 900))        # 25 km2 minimum order
 
     def test_modes_registered(self):
         self.assertEqual(set(MODES), {"rfq", "posted", "batch", "tatonnement", "fixed"})

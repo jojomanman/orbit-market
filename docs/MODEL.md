@@ -57,7 +57,28 @@ One tick = 60 simulated seconds every 2 wall seconds (30x). Server warms up 1 si
 | Fixed + FIFO | Anchor prices, arrival order, nearest satellite, distance routing. |
 | Priority reserve | Subscription flag on a job: served ahead of the spot queue, charged min(market price, cap). |
 
-Anchor prices: compute $0.60/unit-h (an L satellite at ~$1.5M built and launched, 64 units, 5 years amortises to ~$0.5), memory $0.006/GB-h, storage $0.30/TB-h, ISL $0.002/GB per hop, downlink $0.50/GB (order of AWS Ground Station per-minute pricing). All assumptions.
+### Anchor prices (`sim/market.py` REF, TASKING; recalibrated 2026-11-22)
+
+| Good | Anchor | Reference |
+|---|---|---|
+| Compute | $7.50 per unit-h (unit = vCPU + accelerator share) | 30x a terrestrial GPU-backed vCPU (~$0.25/h, e.g. AWS g5.xlarge ~$1.0/h for 4 vCPU + A10G). Why 30x: an L satellite is ~500 kg with the 4.5 kW array, battery and radiators its 64 units need; at ~$1,500-3,000/kg to LEO (Falcon 9 / rideshare list prices) plus ~$2.5M hardware and bus, 5 years at ~50 % sold costs ~$2.7/unit-h, ~10x terrestrial. Power, thermal and launch cap the supply, so the anchor sits at 30x and the owners' floor (0.3 x anchor = $2.25) at that cost. |
+| Memory | $0.15 per GB-h | same 30x over terrestrial (~$0.005/GB-h) |
+| Storage | $3.00 per TB-h | same 30x over block storage (~$0.11/TB-h, $80/TB-month) |
+| Mesh (ISL) transit | $0.05 per GB per hop | cloud inter-region / CDN egress, $0.02-0.09/GB |
+| Downlink | $2.00 per GB, station + terminal | AWS Ground Station wideband $10/min reserved to $22/min on-demand at ~5-6 GB/min (https://aws.amazon.com/ground-station/pricing/) |
+| Uplink contact | $10 per station minute + per GB at the station's price | priced like ground-station time: AWS narrowband $3/min, wideband $10-22/min |
+| Imaging sensor time | $190 per km2 for delivery within 15 min, log-falling to $25 per km2 at 24 h; 25 km2 minimum order | Umbra SAR via SkyWatch ~$39-190/km2 (2026, priority at the top); high-res optical tasking ~$10-25/km2 with 25 km2 minimums |
+
+Resulting typical prices (asserted in `tests/test_sanity.py`): a 25 km2 urgent SAR image within 15 min ~$4,800; the
+same within 24 h ~$630; an onboard-processing hour of a weather job (40 units) ~$320 + data; a small relay job tens of
+dollars. Sensor time is a list price fixed at the order (customer image jobs: 25 km2 x job size); it goes to the
+imaging satellite's owner with compute.
+
+Customer values: `value_per_job_usd` was researched against the first anchors (compute $0.60/unit-h). The
+recalibration raised a typical job's anchor cost ~8x, so `sim/customers.py` VALUE_SCALE = 8 multiplies every value;
+image orders add the sensor list price they would pay a tasking provider anyway. Measured over a 1 h customer run
+(rfq): served 64 %, priced out 17 %, missed 19 % (before: 64 / 27 / 9). Annual budgets stay as researched: at these
+prices ~8 of 100 customers spend their daily share (budget / 365) within the first hour and stop for the day.
 
 ## Demand
 
@@ -88,4 +109,4 @@ Assumed: fee, 2:1 ratio. Not yet: routing preference own > peer > transit (one s
 
 ## Known gaps
 
-Advance reservation only via the API (`start_in_s`); customer jobs still start now or re-bid every 3 min. Imaging sensor time is not a priced good. Inter-shell links absent. Ground-station antennas are pooled per station, not scheduled per pass.
+Advance reservation only via the API (`start_in_s`); customer jobs still start now or re-bid every 3 min. Inter-shell links absent. Ground-station antennas are pooled per station, not scheduled per pass.
